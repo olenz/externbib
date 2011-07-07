@@ -32,7 +32,12 @@ $wgSpecialPageGroups['ExternBib'] = 'other';
 function efExternBibSetup() {
   global $wgMessageCache, $wgParser, $wgExternBib;
 
-  $wgExternBib = new ExternBib;
+  $wgExternBib = new ExternBib($wgExternBibDBFile, 
+			       $wgExternBibPDFDirs, 
+			       $wgExternBibPDFURLBases,
+			       $wgExternBibDOIBase,
+			       $wgExternBibEPrintBase
+			       );
 
   // register the tags
   $wgParser->setHook("bibentry", array($wgExternBib, 'bibentry'));

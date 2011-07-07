@@ -18,4 +18,6 @@ $messages['en'] = array(
 	'externbib-results'    => 'Results',
 	'externbib-noresults'    => 'Your query returned no results!',
 	'externbib-gotentries' => 'Your query returned $1 entries.',
+	'externbib-entry-notfound' => 'Entry $1 not found!',
+	'externbib-entry-superseded' => 'Entry $1 is superseded by entry $2!',
 );

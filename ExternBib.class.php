@@ -2,34 +2,40 @@
 if (!defined('MEDIAWIKI')) die();
 
 class ExternBib {
-  // The following are parameters
-  var $dir = "/home/icp/public_html/bib";
-  var $bibfile = "/home/icp/public_html/bib/icpdb.dat";
-  var $pdfdir = "/home/icp/public_html/bib/pdf";
-  var $entrylinkbase = "/~icp/bib/entries";
-  var $pdflinkbase = "/~icp/bib/pdf";
-  var $doibase = "http://dx.doi.org";
-  var $eprintbase = "http://arxiv.org/abs";
-
-  // the actual data
-  var $data;
+  // the database
+  var $db;
   // the currently handled entry
   var $current_entry;
 
-  function ExternBib() {
-    $this->dir = "/home/icp/public_html/bib";
-    $this->bibfile = $this->dir . "/icpdb.dat";
-    $this->pdfdir = $this->dir . "/pdf";
-    $this->entrylinkbase = "/~icp/bib/entries";
-    $this->pdflinkbase = "/~icp/bib/pdf";
-    $this->doibase = "http://dx.doi.org";
-    $this->eprintbase = "http://arxiv.org/abs";
+  // parameters
+  var $pdfdirs;
+  var $doibaseurl;
+  var $eprintbaseurl;
+
+
+  function ExternBib($dbfile=NULL, 
+		     $pdfdirs=NULL, 
+		     $doibaseurl=NULL,
+		     $eprintbaseurl=NULL) {
+    // set defaults
+    if (!$dbfile) $dbfile = "externbib.db";
+    if (!$pdfdirs) $pdfdirs = "pdf/";
+    if (!$doibaseurl) $doibaseurl = "http://dx.doi.org";
+    if (!$eprintbaseurl) $eprintbaseurl = "http://arxiv.org/abs";
+
+    $this->db = dba_open($dbfile, 'rd');
+    if (!$this->db)
+      error_log("ERROR: Could not open $dbfile!");
+    $this->pdfdirs = $pdfdirs;
+    $this->doibaseurl = $doibaseurl;
+    $this->eprintbaseurl = $eprintbaseurl;
   }
 
   //////////////////////////////////////////////////
   // Handle <bibentry>
   //////////////////////////////////////////////////
-  // bibentry creates an unsorted list of all bib entries provided in the tags
+  // bibentry creates an unsorted list of all bib entries provided in
+  // the tag
   // Example: <bibentry>lenz07b,holm98a</bibentry>
   function bibentry( $input, $argv, $parser, $frame ) {
 
@@ -37,8 +43,6 @@ class ExternBib {
     // disable the cache
     $parser->disableCache();
 
-    // read the data
-    $this->readdata();
     // parse $input and split it into entries
     $input=trim($input);
     $entries = preg_split("/[\s,]+/", $input);
@@ -111,7 +115,7 @@ class ExternBib {
    
   // returns whether the field $key for the current entry is set
   function issetb($key) {
-    return isset($this->current_entry[$key]);
+    return array_key_exists($key, $this->current_entry);
   }
    
   // if $key is set in the current entry, 
@@ -144,9 +148,6 @@ class ExternBib {
   //  - meta: show the timestamp, owner and the key
   //  - compact: insert line breaks or not
   function format_entry($entry, $argv=array()) {
-    // current entry is required by getb and issetb
-    $this->current_entry = $this->data[$entry];
-     
     // set defaults
     $compact="no";
     $abstract="no";
@@ -175,16 +176,25 @@ class ExternBib {
     $pdflink = ($pdflink == "yes" || $pdflink == "1");
     $meta = ($meta == "yes" || $meta == "1");
     $compact = ($compact == "yes" || $compact == "1");
-    
-    ////#
+
+    // fetch the entry
+    $data = dba_fetch($entry, $this->db);
+    if (!$data) {
+      echo "<li>" . wfMsg('externbib-entry-notfound', $entry) . "</li>\n";
+      return;
+    } 
+
+    // current entry is used by getb and issetb
+    $this->current_entry = unserialize(dba_fetch($entry, $this->db));
+     
     // check whether the entry is superseded by another one
     if ($this->issetb("superseded")) {
       if ($meta) {
 	$superseded = $this->getb("superseded");
-	echo "<li>Entry $entry\n";
-	echo "<a href=\"" . $this->entrylinkbase . "/$entry.bib\">[BibTeX]</a>\n";
-	echo " is superseded by entry $superseded ";
-	echo "<a href=\"" . $this->entrylinkbase . "/$superseded.bib\">[BibTeX]</a>\n";
+	echo "<li>";
+	echo wfMsg('externbib-entry-superseded', $entry, $superseded);
+	//	echo "<a href=\"" . $this->entrylinkbase . "/$entry.bib\">[BibTeX]</a>\n";
+	//	echo "<a href=\"" . $this->entrylinkbase . "/$superseded.bib\">[BibTeX]</a>\n";
 	echo ".</li>\n";
       }
       return;
@@ -192,7 +202,6 @@ class ExternBib {
 
     echo "<li>\n";
   
-    ////#
     // main formatting
 
     if ($meta) echo "[$entry]<br/>\n";
@@ -228,42 +237,42 @@ class ExternBib {
     case "inbook":
     case "incollection":
       echo "In ";
-      echo "<i>" . $this->getb("booktitle", "unknown booktitle") . "</i>";
-      if ($this->issetb("series") || $this->issetb("volume")) {
-	echo ", volume " . $this->getb("volume") . " of ";
-	echo "<i>" . $this->getb("series", "") . "</i>";
-      }
-      echo $this->getb("chapter", "", ", chapter %s");
-      echo $this->getb("pages", "", ", pages %s");
-      echo ".";
-      echo $this->getb("editor", "", " Editors: %s,\n");
-      if (!$compact) echo "<br/>";
-      echo "\n";
-      echo $this->getb("publisher", "Unknown publisher");
-      echo $this->getb("address", "", ", %s");
-      echo $this->getb("year", "", ", <b>%s</b>");
-      echo ". \n";
-      break;
+    echo "<i>" . $this->getb("booktitle", "unknown booktitle") . "</i>";
+    if ($this->issetb("series") || $this->issetb("volume")) {
+      echo ", volume " . $this->getb("volume") . " of ";
+      echo "<i>" . $this->getb("series", "") . "</i>";
+    }
+    echo $this->getb("chapter", "", ", chapter %s");
+    echo $this->getb("pages", "", ", pages %s");
+    echo ".";
+    echo $this->getb("editor", "", " Editors: %s,\n");
+    if (!$compact) echo "<br/>";
+    echo "\n";
+    echo $this->getb("publisher", "Unknown publisher");
+    echo $this->getb("address", "", ", %s");
+    echo $this->getb("year", "", ", <b>%s</b>");
+    echo ". \n";
+    break;
 
     case "conference":
     case "inproceedings":
       echo "<i>" . $this->getb("booktitle", "unknown booktitle") . "</i>\n";
-      if ($this->issetb("series") || $this->issetb("volume")) {
-	echo ", volume " . $this->getb("volume") . " of ";
-	echo "<i>" . $this->getb("series", "") . "</i>";
-      }
-      echo $this->getb("chapter", "", ", chapter %s");
-      echo $this->getb("pages", "", ", pages %s, ");
-      echo $this->getb("editor", "", "Editors: %s,\n");
-      echo $this->getb("address", "", ", %s");
-      echo $this->getb("year", "", ", <b>%s</b>");
-      echo ".";
-      if (!$compact) echo "<br/>";
-      echo "\n";
-      echo $this->getb("publisher", "Unknown publisher");
-      echo $this->getb("pubaddress", "", ", %s");
-      echo ". \n";
-      break;
+    if ($this->issetb("series") || $this->issetb("volume")) {
+      echo ", volume " . $this->getb("volume") . " of ";
+      echo "<i>" . $this->getb("series", "") . "</i>";
+    }
+    echo $this->getb("chapter", "", ", chapter %s");
+    echo $this->getb("pages", "", ", pages %s, ");
+    echo $this->getb("editor", "", "Editors: %s,\n");
+    echo $this->getb("address", "", ", %s");
+    echo $this->getb("year", "", ", <b>%s</b>");
+    echo ".";
+    if (!$compact) echo "<br/>";
+    echo "\n";
+    echo $this->getb("publisher", "Unknown publisher");
+    echo $this->getb("pubaddress", "", ", %s");
+    echo ". \n";
+    break;
 
     case "mastersthesis":
       echo $this->getb("type", "<i>Master's thesis</i>");
@@ -323,52 +332,57 @@ class ExternBib {
     case "misc":
     default:
       echo $this->getb("year", "", "<b>%s</b>.\n");
-      break;
+    break;
     }
 
-    ////#
     // Notes
     if ($this->issetb("note")) {
       if (! $compact) echo "<br/>\n";
       echo $this->getb("note");
     }
 
-    ////#
     // Links
     if (!$compact) echo "<br/>\n";
 
-    echo "<a href=\"" . $this->entrylinkbase . "/$entry.bib\">[BibTeX]</a>\n";
+    /* echo "<a href=\"" . $this->entrylinkbase . "/$entry.bib\">[BibTeX]</a>\n"; */
 
-    if (!$abstract && $this->issetb("abstract"))
-      echo "<a href=\"" . $this->entrylinkbase . "/$entry-abs.html\">[Abstract]</a>\n";   
+    /* if (!$abstract && $this->issetb("abstract")) */
+    /*   echo "<a href=\"" . $this->entrylinkbase . "/$entry-abs.html\">[Abstract]</a>\n";    */
 
     if ($pdflink) {
-      $filedir = $this->pdfdir . "/" . $this->getb("pdfdir");
-      $filelinkbase = $this->pdflinkbase . "/" . $this->getb("pdfdir");
+      foreach ($this->pdfdirs as $pdfdir) {
+	if (count($pdfdir) == 1) {
+	  $urlbase = $pdfdir;
+	  $dir = $pdfdir;
+	} else {
+	  $dir = $pdfdir[0];
+	  $urlbase = $pdfdir[1];
+	}
 
-      $pdffile = "$filedir/$entry.pdf";
-      if (file_exists($pdffile)) {
-	echo "<a href=\"$filelinkbase/$entry.pdf\">[PDF]</a>";
-	echo " (" . $this->hfilesize($pdffile) . ")\n";
-      }
+	$pdffile = "$dir/$entry.pdf";
+	if (file_exists($pdffile)) {
+	  echo "<a href=\"$urlbase/$entry.pdf\">[PDF]</a>";
+	  echo " (" . $this->hfilesize($pdffile) . ")\n";
+	}
     
-      $psfile = "$filedir/$entry.ps";
-      if (file_exists($psfile)) {
-	echo "<a href=\"$filelinkbase/$entry.ps\">[PS]</a>";
-	echo " (" . $this->hfilesize($psfile) .")\n";
-      }
+	$psfile = "$dir/$entry.ps";
+	if (file_exists($psfile)) {
+	  echo "<a href=\"$urlbase/$entry.ps\">[PS]</a>";
+	  echo " (" . $this->hfilesize($psfile) .")\n";
+	}
 
-      $psgzfile = "$filedir/$entry.ps.gz";
-      if (file_exists($psgzfile)) {
-	echo "<a href=\"$filelinkbase/$entry.ps.gz\">[PS.GZ]</a>";
-	echo " (" . $this->hfilesize($psgzfile) .")\n";
+	$psgzfile = "dir/$entry.ps.gz";
+	if (file_exists($psgzfile)) {
+	  echo "<a href=\"$urlbase/$entry.ps.gz\">[PS.GZ]</a>";
+	  echo " (" . $this->hfilesize($psgzfile) .")\n";
+	}
       }
     }
   
     echo $this->getb("e-print", "", 
-		     "<a href=\"" . $this->eprintbase . "/%s\">[Preprint]</a>\n");
+		     "<a href=\"" . $this->eprintbaseurl . "/%s\">[Preprint]</a>\n");
     echo $this->getb("doi", "",
-		     "<a href=\"" . $this->doibase . "/%s\">[DOI]</a>\n");
+		     "<a href=\"" . $this->doibaseurl . "/%s\">[DOI]</a>\n");
     echo $this->getb("url", "", "<a href=\"%s\">[URL]</a>\n");
 	
     
@@ -452,12 +466,19 @@ class ExternBib {
   }
 
   function search_entries($querystring) {
-    
     $query = $this->parse_query($querystring);
     if (!is_array($query)) return $query;
 
-    $this->readdata();
+    // fetch all entries into data array
+    if (!$this->data) {
+      $key = dba_firstkey($this->db);
+      while ($key) {
+	$this->data[$key] = unserialize(dba_fetch($key, $this->db));
+	$key = dba_nextkey($this->db);
+      }
+    }
 
+    // now query the data
     $selection = array_keys($this->data);
     foreach ($query as $phrase) {
       $newselection = array();
