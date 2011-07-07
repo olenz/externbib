@@ -7,7 +7,7 @@ $script = array_shift($argv);
 function usage() {
   global $script;
   error_log("Usage: $script [-h] [-?]");
-  error_log("Usage: $script [-n] [-o OUTPUTDB] [-O FULLDB] BIBFILE...");
+  error_log("Usage: $script [-n] [-o OUTPUTDB] BIBFILE...");
   exit(2);
 } 
 
@@ -16,7 +16,6 @@ function usage() {
 $dryrun = false;
 $pdfbase = 'pdf';
 $outputdb = "externbib.db";
-$fulldb = "externbib-full.db";
 
 // command line parsing
 
@@ -24,7 +23,6 @@ $parameters = array(
   'h' => 'help',
   'n' => 'dryrun',
   'o:' => 'output:',
-  'O:' => 'full:',
 );
 
 $options = getopt(implode('', array_keys($parameters)), $parameters);
@@ -43,11 +41,6 @@ if (array_key_exists('o', $options)) {
   $outputdb = $options['o'];
   if (file_exists($outputdb))
     error_log("$script: WARNING: output file $outputdb already exists. Overwriting.");
-}
-if (array_key_exists('O', $options)) {
-  $fulldb = $options['O'];
-  if (file_exists($fulldb))
-    error_log("$script: WARNING: output file $fulldb already exists. Overwriting.");
 }
 
 // remove getopt args from argv
@@ -141,8 +134,8 @@ $bibtex->setOption("unwrap", true);
 $bibtex->setOption("storeFullEntries", true);
 
 if (!$dryrun) {
-  $bib = dba_open($outputdb, 'nd');
-  if (!$bib) {
+  $db = dba_open($outputdb, 'nd');
+  if (!$db) {
     error_log("ERROR: Could not open $outputdb for writing!");
     exit(1);
   }
@@ -167,7 +160,7 @@ foreach ($bibfiles as $bibfile) {
   
   print "Found " . $bibtex->amount() . " entries.\n";
 
-  print "Writing data into DB file ...\n";
+  print "Writing data into $outputdb...\n";
   foreach ($bibtex->data as $entry) {
     // create associative array
     $key  = $entry['cite'];
@@ -183,7 +176,7 @@ foreach ($bibfiles as $bibfile) {
     $value = serialize($cleanentry);
 
     if (!$dryrun)
-      dba_replace($key, $value, $bib);
+      dba_replace($key, $value, $db);
   }
 
 }
@@ -194,9 +187,9 @@ if ($dryrun) {
 }
 
 print "Optimizing database ...\n";
-dba_optimize($bib);
+dba_optimize($db);
   
-dba_close($bib);
+dba_close($db);
 print "Read all data.\n";
 
 print "Finished.\n";

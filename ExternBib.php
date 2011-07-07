@@ -23,30 +23,38 @@ $dir = dirname(__FILE__) . '/';
 require_once($dir . 'ExternBib.class.php');
 
 $wgExtensionMessagesFiles['ExternBib'] = $dir . 'ExternBib.i18n.php';
-$wgAutoloadClasses['SpecialExternBibSearch'] = $dir . 'SpecialExternBibSearch.php';
 $wgExtensionFunctions[] = 'efExternBibSetup';
-$wgSpecialPages['ExternBib'] = 'SpecialExternBibSearch';
-$wgSpecialPageGroups['ExternBib'] = 'other';
+$wgAutoloadClasses['SpecialExternBibSearch'] = $dir . 'SpecialExternBibSearch.php';
+$wgAutoloadClasses['SpecialExternBibFullEntry'] = $dir . 'SpecialExternBibFullEntry.php';
+$wgSpecialPages['ExternBibSearch'] = 'SpecialExternBibSearch';
+$wgSpecialPageGroups['ExternBibSearch'] = 'other';
+$wgSpecialPages['ExternBibFullEntry'] = 'SpecialExternBibFullEntry';
+$wgSpecialPageGroups['ExternBibFulEntry'] = 'other';
+
+if (!isset($wgExternBibDBFile)) $wgExternBibDBFile = NULL;
+if (!isset($wgExternBibPDFDirs)) $wgExternBibPDFDirs = NULL;
+if (!isset($wgExternBibDOIBaseURL)) $wgExternBibDOIBaseURL = NULL;
+if (!isset($wgExternBibEPrintBaseURL)) $wgExternBibEPrintBaseURL = NULL;
 
 // setup the module
 function efExternBibSetup() {
-  global $wgMessageCache, $wgParser, $wgExternBib;
+  global $wgParser, 
+    $wgExternBib,
+    $wgExternBibDBFile, 
+    $wgExternBibPDFDirs, 
+    $wgExternBibDOIBaseURL,
+    $wgExternBibEPrintBaseURL;
 
-  $wgExternBib = new ExternBib($wgExternBibDBFile, 
+  $wgExternBib = new ExternBib($wgExternBibDBFile,
 			       $wgExternBibPDFDirs, 
-			       $wgExternBibPDFURLBases,
-			       $wgExternBibDOIBase,
-			       $wgExternBibEPrintBase
+			       $wgExternBibDOIBaseURL,
+			       $wgExternBibEPrintBaseURL
 			       );
 
   // register the tags
   $wgParser->setHook("bibentry", array($wgExternBib, 'bibentry'));
   $wgParser->setHook("bibsearch", array($wgExternBib, 'bibsearch'));
   
-  // setup the special page
-  $wgMessageCache->addMessage('bibsearch', 'Search in the bibtex database');
-  SpecialPage::addPage(new SpecialPage('BibSearch', '', true, 'ExternBibSpecialBibSearch', '', true)); 
-
   return true;
 }
 

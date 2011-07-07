@@ -12,21 +12,26 @@ class ExternBib {
   var $doibaseurl;
   var $eprintbaseurl;
 
-
   function ExternBib($dbfile=NULL, 
 		     $pdfdirs=NULL, 
 		     $doibaseurl=NULL,
 		     $eprintbaseurl=NULL) {
     // set defaults
-    if (!$dbfile) $dbfile = "externbib.db";
-    if (!$pdfdirs) $pdfdirs = "pdf/";
+    $dir = dirname(__FILE__);
+    if (!$dbfile) $dbfile = "$dir/test/externbib.db";
+    if (!$pdfdirs) $pdfdirs = array(array("$dir/test/pdf", "extensions/ExternBib/test/pdf"));
     if (!$doibaseurl) $doibaseurl = "http://dx.doi.org";
     if (!$eprintbaseurl) $eprintbaseurl = "http://arxiv.org/abs";
 
+    if (!is_file($dbfile))
+      error_log("ERROR: $dbfile does not exist!");
     $this->db = dba_open($dbfile, 'rd');
     if (!$this->db)
       error_log("ERROR: Could not open $dbfile!");
-    $this->pdfdirs = $pdfdirs;
+    if (is_array($pdfdirs))
+      $this->pdfdirs = $pdfdirs;
+    else
+      $this->pdfdirs = array($pdfdirs);
     $this->doibaseurl = $doibaseurl;
     $this->eprintbaseurl = $eprintbaseurl;
   }
@@ -44,7 +49,7 @@ class ExternBib {
     $parser->disableCache();
 
     // parse $input and split it into entries
-    $input=trim($input);
+    $input = trim($input);
     $entries = preg_split("/[\s,]+/", $input);
 
     // start writing into the output buffer
@@ -72,9 +77,6 @@ class ExternBib {
     // disable the cache
     $parser->disableCache();
     
-    // read the data
-    $this->readdata();
-    
     // start writing into the output buffer
     ob_start();
 
@@ -100,19 +102,6 @@ class ExternBib {
   //////////////////////////////////////////////////
   // helper functions
   //////////////////////////////////////////////////
-  // Read the data from the datafile
-  // requires the global variable $bibdatafile to be set
-  function readdata() {
-    // only read the data if it was not already read
-    if (!isset($this->data)) {
-      $fh = fopen($this->bibfile, "r");
-      $this->data = 
-	unserialize(fread($fh,filesize($this->bibfile)));
-       
-      fclose($fh);
-    }
-  }
-   
   // returns whether the field $key for the current entry is set
   function issetb($key) {
     return array_key_exists($key, $this->current_entry);
@@ -143,7 +132,8 @@ class ExternBib {
 
   // Format $entry
   // parameters: 
-  //  - abstract: show the abstract inline
+  //  - abstract: show the abstract
+  //  - bibtex: show the bibtexentry 
   //  - pdflink: show links to the pdf files (if available)
   //  - meta: show the timestamp, owner and the key
   //  - compact: insert line breaks or not
@@ -153,6 +143,8 @@ class ExternBib {
     $abstract="no";
     $pdflink="no";
     $meta="no";
+    $bibtex="no";
+    $fullentrylink="no";
      
     // parse options
     foreach ($argv as $option => $value) {
@@ -169,6 +161,12 @@ class ExternBib {
       case "compact":
 	$compact = $value;
 	break;
+      case "bibtex":
+	$bibtex = $value;
+	break;
+      case "fullentrylink":
+	$fullentrylink = $value;
+	break;
       }
     }
       
@@ -176,6 +174,8 @@ class ExternBib {
     $pdflink = ($pdflink == "yes" || $pdflink == "1");
     $meta = ($meta == "yes" || $meta == "1");
     $compact = ($compact == "yes" || $compact == "1");
+    $bibtex = ($bibtex == "yes" || $bibtex == "1");
+    $fullentrylink = ($fullentrylink == "yes" || $fullentrylink == "1");
 
     // fetch the entry
     $data = dba_fetch($entry, $this->db);
@@ -344,11 +344,12 @@ class ExternBib {
     // Links
     if (!$compact) echo "<br/>\n";
 
-    /* echo "<a href=\"" . $this->entrylinkbase . "/$entry.bib\">[BibTeX]</a>\n"; */
+    // link to full entry
+    if ($fullentrylink)
+      // TODO: This is a hack!
+      echo "<a href=\":Special:ExternBibFullEntry/$entry\">[Full Entry]</a>\n";
 
-    /* if (!$abstract && $this->issetb("abstract")) */
-    /*   echo "<a href=\"" . $this->entrylinkbase . "/$entry-abs.html\">[Abstract]</a>\n";    */
-
+    // link to files
     if ($pdflink) {
       foreach ($this->pdfdirs as $pdfdir) {
 	if (count($pdfdir) == 1) {
@@ -385,16 +386,20 @@ class ExternBib {
 		     "<a href=\"" . $this->doibaseurl . "/%s\">[DOI]</a>\n");
     echo $this->getb("url", "", "<a href=\"%s\">[URL]</a>\n");
 	
-    
-    ////#
     // Abstract
     if ($abstract && $this->issetb("abstract")) {
       echo "<div style=\"margin:0pt 1em 1em 1em;font-size:75%\">\n";
       echo $this->getb("abstract");
       echo "</div>\n";
     }
+
+    // BibTeX record
+    if ($bibtex && $this->issetb("fullEntry")) {
+      echo "<pre>\n";
+      echo $this->getb("fullEntry");
+      echo "</pre>\n";
+    }
     
-    ////#
     // Timestamp
     if ($meta && 
 	($this->issetb('timestamp') || $this->issetb('owner'))) {
@@ -470,11 +475,12 @@ class ExternBib {
     if (!is_array($query)) return $query;
 
     // fetch all entries into data array
-    if (!$this->data) {
-      $key = dba_firstkey($this->db);
-      while ($key) {
-	$this->data[$key] = unserialize(dba_fetch($key, $this->db));
-	$key = dba_nextkey($this->db);
+    if (!isset($this->data)) {
+      $entry = dba_firstkey($this->db);
+      while ($entry) {
+	$record=unserialize(dba_fetch($entry, $this->db));
+	$this->data[$entry] = $record;
+	$entry = dba_nextkey($this->db);
       }
     }
 
@@ -485,26 +491,33 @@ class ExternBib {
       $key=$phrase[0];
       $op=$phrase[1];
       $searchvalue=$phrase[2];
+      
       switch ($op) {
       case "contains":
 	foreach ($selection as $entry) {
-	  $value = $this->data[$entry][$key];
-	  if (mb_strpos(mb_strtolower($value), mb_strtolower($searchvalue)) !== FALSE)
-	    $newselection[] = $entry;
+	  if (array_key_exists($key, $this->data[$entry])) {
+	    $value = $this->data[$entry][$key];
+	    if (mb_strpos(mb_strtolower($value), mb_strtolower($searchvalue)) !== FALSE)
+	      $newselection[] = $entry;
+	  } 
 	}
 	break;
       case "greater":
 	foreach ($selection as $entry) {
-	  $value = $this->data[$entry][$key];
-	  if ($value > $searchvalue)
-	    $newselection[] = $entry;
+	  if (array_key_exists($key, $this->data[$entry])) {
+	    $value = $this->data[$entry][$key];
+	    if ($value > $searchvalue)
+	      $newselection[] = $entry;
+	  }
 	}
 	break;
       case "less":
 	foreach ($selection as $entry) {
-	  $value = $this->data[$entry][$key];
-	  if ($value < $searchvalue)
-	    $newselection[] = $entry;
+	  if (array_key_exists($key, $this->data[$entry])) {
+	    $value = $this->data[$entry][$key];
+	    if ($value < $searchvalue)
+	      $newselection[] = $entry;
+	  }
 	}
 	break;
       }
