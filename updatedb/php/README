@@ -1,0 +1,12 @@
+Time-stamp: <2011-05-25 18:43 olenz>
+
+How to update the BibTeX Parser
+-------------------------------
+* Get the package from 
+  http://pear.php.net/package/Structures_BibTex/download/
+
+* unpack it
+
+* copy the file BibTex.php to top level dir
+
+* look for local patches
