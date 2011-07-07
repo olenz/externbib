@@ -92,67 +92,6 @@ class ExternBib {
     return $output;
   }
 
-  function specialBibsearch($par) {
-    global $wgOut, $wgRequest, $wgUser;
-
-    $wgOut->setPageTitle( 'Search the bibtex database' );
-    
-    // # if the page is called via ~simbio/Special:BibSearch/PAR?bla=blub
-    //     #   $par contains "PAR"
-    // # In this function, the following can be used:
-    //     # $wgUser->isLoggedIn() 
-    //     #   - test whether the user is logged in
-    //     # $wgRequest->getVal( 'searchbib' )
-    //     #   - get the value of the parameter searchbib
-    //     # $wgRequest->getText( 'searchbib' )
-    //     #   - get a text from the parameter searchbib
-    //     # $wgOut->addHTML($out);
-    //     #   - output $out in the page
-    
-    ob_start();
-    
-    $query = $wgRequest->getVal('query');
-
-    ?>
-      <p>
- 	 Enter your query (e.g. author=holm and author=deserno and title="mesh up" and year>1998):<br/>
-
- 	 <form name="searchform2" action="" method="get">
- 	 <input style="width:400px" type="text" name="query" value="<?php print htmlspecialchars($query) ?>"/>
- 	 <input type="submit" value="Search"/>
- 	 </form>
- 	 </p>
- 	 <?php
-
- 	 if ($query) {
-	   echo "<h2>Results</h2>\n";
-	   
-	   // print results
-	   $found_entries = $this->search_entries($query);
-	   if (!is_array($found_entries)) {
-	     echo '<p class="error">Error in query: ' . $found_entries . "</p>\n";
-	   } elseif (count($found_entries) == 0) {
-	     echo "<p class=\"error\">Query returned no results!</p>\n";
-	   } else {
-	     if ($wgUser->isLoggedIn()) {
-	       $format_options = array( "meta" => 1, "pdflink" => 1, );
-	     } else {
-	       $format_options = array();
-	     }
-	     echo "<p>Your query returned " . count($found_entries) . " entries.</p>\n";
-
-	     echo "<ul class=\"plainlinks\">\n";
-	     foreach ($found_entries as $entry) {
-	       $this->format_entry($entry, $format_options);
-	     }
-	     echo "</ul>\n";
-	   }
-	 }
-
-    $output = ob_get_contents();
-    ob_end_clean();
-    $wgOut->addHTML($output);
-  }
 
   //////////////////////////////////////////////////
   // helper functions
