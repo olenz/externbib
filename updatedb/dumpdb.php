@@ -14,6 +14,7 @@ $bib = dba_open($dbfile, "rd");
 foreach ($keys as $key) {
   $value = dba_fetch($key, $bib);
   $entry = unserialize($value);
+  echo "--------------------------------------------------\n";
   print_r($entry);
 }
 
