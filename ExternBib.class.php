@@ -365,15 +365,10 @@ class ExternBib {
 
       // link to files
       if ($filelink) {
-	foreach ($this->filedirs as $filedir) {
-	  if (count($filedir) == 1) {
-	    $urlbase = $filedir;
-	    $dir = $filedir;
-	  } else {
-	    $dir = $filedir[0];
-	    $urlbase = $filedir[1];
-	  }
-
+	for ($i=0; $i < count($this->filedirs); $i++) {
+	  $dir = $this->filedirs[$i];
+	  $urlbase = $this->filebaseurls[$i];
+	  
 	  $pdffile = "$dir/$entry.pdf";
 	  if (file_exists($pdffile)) {
 	    echo "<a href=\"$urlbase/$entry.pdf\">[PDF]</a>";
