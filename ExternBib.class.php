@@ -92,7 +92,7 @@ class ExternBib {
 
     if ($found_entries) {
       // Output the results
-      $this->format_entries($entry, $argv);
+      $this->format_entries($found_entries, $argv);
     }
   
     // get everything from the output buffer
