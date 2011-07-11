@@ -42,11 +42,7 @@ class SpecialExternBibSearch extends SpecialPage {
 	   }
 	   echo '<p>' . wfMsg('externbib-gotentries', count($found_entries)) . "</p>\n";
 
-	   echo "<ul class=\"plainlinks\">\n";
-	   foreach ($found_entries as $entry) {
-	     $wgExternBib->format_entry($entry, $format_options);
-	   }
-	   echo "</ul>\n";
+	   $wgExternBib->format_entries($found_entries, $format_options);
 	 }
        }
     

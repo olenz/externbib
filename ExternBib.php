@@ -24,31 +24,46 @@ require_once($dir . 'ExternBib.class.php');
 
 $wgExtensionMessagesFiles['ExternBib'] = $dir . 'ExternBib.i18n.php';
 $wgExtensionFunctions[] = 'efExternBibSetup';
+
 $wgAutoloadClasses['SpecialExternBibSearch'] = $dir . 'SpecialExternBibSearch.php';
-$wgAutoloadClasses['SpecialExternBibFullEntry'] = $dir . 'SpecialExternBibFullEntry.php';
 $wgSpecialPages['ExternBibSearch'] = 'SpecialExternBibSearch';
 $wgSpecialPageGroups['ExternBibSearch'] = 'other';
-$wgSpecialPages['ExternBibFullEntry'] = 'SpecialExternBibFullEntry';
-$wgSpecialPageGroups['ExternBibFulEntry'] = 'other';
 
-if (!isset($wgExternBibDBFile)) $wgExternBibDBFile = NULL;
-if (!isset($wgExternBibPDFDirs)) $wgExternBibPDFDirs = NULL;
-if (!isset($wgExternBibDOIBaseURL)) $wgExternBibDOIBaseURL = NULL;
-if (!isset($wgExternBibEPrintBaseURL)) $wgExternBibEPrintBaseURL = NULL;
+$wgAutoloadClasses['SpecialExternBibShowEntry'] = $dir . 'SpecialExternBibShowEntry.php';
+$wgSpecialPages['ExternBibShowEntry'] = 'SpecialExternBibShowEntry';
+$wgSpecialPageGroups['ExternBibShowEntry'] = 'other';
+
+// defaults
+if (!isset($wgExternBibDBFile)) 
+  $wgExternBibDBFile = "$dir/test/externbib.db";
+if (!isset($wgExternBibFileDirs)) 
+  $wgExternBibFileDirs ="$dir/test/pdf" ;
+if (!isset($wgExternBibFileBaseURLs)) 
+  $wgExternBibFileBaseURLs = "extensions/ExternBib/test/pdf";
+if (!isset($wgExternBibDOIBaseURL)) 
+  $wgExternBibDOIBaseURL = "http://dx.doi.org";
+if (!isset($wgExternBibEPrintBaseURL)) 
+  $wgExternBibEPrintBaseURL = "http://arxiv.org/abs";
+if (!isset($wgExternBibDefaultFormat)) 
+  $wgExternBibDefaultFormat = array();
 
 // setup the module
 function efExternBibSetup() {
   global $wgParser, 
     $wgExternBib,
     $wgExternBibDBFile, 
-    $wgExternBibPDFDirs, 
+    $wgExternBibFileDirs, 
+    $wgExternBibFileBaseURLs, 
     $wgExternBibDOIBaseURL,
-    $wgExternBibEPrintBaseURL;
+    $wgExternBibEPrintBaseURL,
+    $wgExternBibDefaultFormat;
 
   $wgExternBib = new ExternBib($wgExternBibDBFile,
-			       $wgExternBibPDFDirs, 
+			       $wgExternBibFileDirs, 
+			       $wgExternBibFileBaseURLs, 
 			       $wgExternBibDOIBaseURL,
-			       $wgExternBibEPrintBaseURL
+			       $wgExternBibEPrintBaseURL,
+			       $wgExternBibDefaultFormat
 			       );
 
   // register the tags
