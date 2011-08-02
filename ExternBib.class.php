@@ -133,8 +133,9 @@ class ExternBib {
   }
 
   function fullEntryLink($entry, $text) {
-    $title = Title::newFromText("Special:ExternBibShowEntry/$entry");
-    $link = Linker::link($title, $text);
+    $title = SpecialPage::getTitleFor("ExternBibShowEntry", "$entry");
+    $linker = new Linker();
+    $link = $linker->link($title, $text);
     return $link;
   }
 
