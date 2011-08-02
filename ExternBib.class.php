@@ -194,7 +194,7 @@ class ExternBib {
       } 
 
       // current entry is used by getb and issetb
-      $this->current_entry = unserialize(dba_fetch($entry, $this->db));
+      $this->current_entry = unserialize($data);
      
       // check whether the entry is superseded by another one
       if ($this->issetb("superseded")) {
@@ -361,7 +361,9 @@ class ExternBib {
 
       // link to full entry
       if ($fullentrylink)
-	echo $this->fullEntryLink($entry, '[' . wfMsg('externbib-fullentry') . ']') . "\n";
+	echo $this->fullEntryLink($entry, '[' . 
+				  wfMsg('externbib-fullentry') . 
+				  ']') . "\n";
 
       // link to files
       if ($filelink) {
