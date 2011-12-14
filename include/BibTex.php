@@ -315,13 +315,8 @@ class Structures_BibTex
             }
             $unique = array_unique($cites);
             if (sizeof($cites) != sizeof($unique)) { //Some values have not been unique!
-                $notuniques = array();
-                for ($i = 0; $i < sizeof($cites); $i++) {
-                    if ('' == $unique[$i]) {
-                        $notuniques[] = $cites[$i];
-                    }
-                }
-                $this->_generateWarning('WARNING_MULTIPLE_ENTRIES', implode(',',$notuniques));
+	      $notuniques = array_unique( array_diff_assoc( $cites, $unique ) );
+	      $this->_generateWarning('WARNING_MULTIPLE_ENTRIES', implode(',',$notuniques));
             }
         }
         if ($valid) {
