@@ -161,6 +161,7 @@ class ExternBib {
   //  - meta: show the timestamp, owner and the key
   //  - compact: insert line breaks or not
   function format_entries($entries, $argv=array()) {
+    global $wgUser;
     if (count($entries) == 0)
       return;
 
@@ -361,13 +362,13 @@ class ExternBib {
       if (!$compact) echo "<br/>\n";
 
       // link to full entry
-      if ($fullentrylink)
+      if ($fullentrylink && $wgUser->isLoggedIn())
 	echo $this->fullEntryLink($entry, '[' . 
 				  wfMsg('externbib-fullentry') . 
 				  ']') . "\n";
 
       // link to files
-      if ($filelink) {
+      if ($filelink && $wgUser->isLoggedIn()) {
 	for ($i=0; $i < count($this->filedirs); $i++) {
 	  $dir = $this->filedirs[$i];
 	  $urlbase = $this->filebaseurls[$i];
