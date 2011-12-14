@@ -292,17 +292,6 @@ class Structures_BibTex
             }
             $lastchar = $char;
         }
-        //If open is one it may be possible that the last ending brace is missing
-        if (1 == $open) {
-            $entrydata = $this->_parseEntry($buffer);
-            if (!$entrydata) {
-                $valid = false;
-            } else {
-                $this->data[] = $entrydata;
-                $buffer = '';
-                $open   = 0;
-            }
-        }
         //At this point the open should be zero
         if (0 != $open) {
             $valid = false;
