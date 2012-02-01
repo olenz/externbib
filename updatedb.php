@@ -37,11 +37,8 @@ if (array_key_exists('n', $options)) {
   echo "Dry run, won't write any files!\n";
 }
 
-if (array_key_exists('o', $options)) {
+if (array_key_exists('o', $options))
   $outputdb = $options['o'];
-  if (file_exists($outputdb))
-    error_log("$script: WARNING: output file $outputdb already exists. Overwriting.");
-}
 
 // remove getopt args from argv
 $pruneargv = array();
@@ -133,15 +130,6 @@ $bibtex->setOption("removeCurlyBraces", true);
 $bibtex->setOption("unwrap", true);
 $bibtex->setOption("storeFullEntries", true);
 
-if (!$dryrun) {
-  $db = dba_open($outputdb, 'nd');
-  if (!$db) {
-    error_log("ERROR: Could not open $outputdb for writing!");
-    exit(1);
-  }
-}
-
-
 foreach ($bibfiles as $bibfile) {
   print "Loading $bibfile...\n";
   $ret    = $bibtex->loadFile($bibfile);
@@ -161,6 +149,18 @@ foreach ($bibfiles as $bibfile) {
   print "Found " . $bibtex->amount() . " entries.\n";
 
   print "Writing data into $outputdb...\n";
+
+  if (!$dryrun) {
+    if (file_exists($outputdb)) {
+      error_log("$script: WARNING: output file $outputdb already exists. Deleting old file.");
+      unlink($outputdb);
+    }
+    $db = dba_open($outputdb, 'nd');
+    if (!$db) {
+      error_log("ERROR: Could not open $outputdb for writing!");
+      exit(1);
+    }
+  }
   foreach ($bibtex->data as $entry) {
     // create associative array
     $key  = $entry['cite'];
@@ -176,7 +176,7 @@ foreach ($bibfiles as $bibfile) {
     $value = serialize($cleanentry);
 
     if (!$dryrun)
-      dba_replace($key, $value, $db);
+      dba_insert($key, $value, $db);
   }
 
 }
