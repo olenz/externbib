@@ -362,13 +362,13 @@ class ExternBib {
       if (!$compact) echo "<br/>\n";
 
       // link to full entry
-      if ($fullentrylink && $wgUser->isLoggedIn())
+      if ($fullentrylink)
 	echo $this->fullEntryLink($entry, '[' . 
 				  wfMsg('externbib-fullentry') . 
 				  ']') . "\n";
 
       // link to files
-      if ($filelink && $wgUser->isLoggedIn()) {
+      if ($filelink) {
 	for ($i=0; $i < count($this->filedirs); $i++) {
 	  $dir = $this->filedirs[$i];
 	  $urlbase = $this->filebaseurls[$i];

@@ -44,8 +44,10 @@ if (!isset($wgExternBibDOIBaseURL))
   $wgExternBibDOIBaseURL = "http://dx.doi.org";
 if (!isset($wgExternBibEPrintBaseURL)) 
   $wgExternBibEPrintBaseURL = "http://arxiv.org/abs";
-if (!isset($wgExternBibDefaultFormat)) 
+if (!isset($wgExternBibDefaultFormat)) {
   $wgExternBibDefaultFormat = array();
+  $wgExternBibDefaultFormat["filelink"] = true;
+}
 
 // setup the module
 function efExternBibSetup() {
