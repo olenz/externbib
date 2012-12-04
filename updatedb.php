@@ -50,7 +50,7 @@ foreach ($options as $option => $value) {
     }
   }
 }
-while ($key = array_pop($pruneargv)) unset($argv[$key]);
+while (($key = array_pop($pruneargv)) !== NULL) unset($argv[$key]);
 
 $bibfiles = $argv;
 

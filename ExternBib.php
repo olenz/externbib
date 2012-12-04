@@ -34,8 +34,8 @@ $wgSpecialPages['ExternBibShowEntry'] = 'SpecialExternBibShowEntry';
 $wgSpecialPageGroups['ExternBibShowEntry'] = 'other';
 
 // defaults
-if (!isset($wgExternBibDBFile)) 
-  $wgExternBibDBFile = "$dir/test/externbib.db";
+if (!isset($wgExternBibDBFiles)) 
+  $wgExternBibDBFiles = "$dir/test/externbib.db";
 if (!isset($wgExternBibFileDirs)) 
   $wgExternBibFileDirs ="$dir/test/pdf" ;
 if (!isset($wgExternBibFileBaseURLs)) 
@@ -53,14 +53,14 @@ if (!isset($wgExternBibDefaultFormat)) {
 function efExternBibSetup() {
   global $wgParser, 
     $wgExternBib,
-    $wgExternBibDBFile, 
+    $wgExternBibDBFiles, 
     $wgExternBibFileDirs, 
     $wgExternBibFileBaseURLs, 
     $wgExternBibDOIBaseURL,
     $wgExternBibEPrintBaseURL,
     $wgExternBibDefaultFormat;
 
-  $wgExternBib = new ExternBib($wgExternBibDBFile,
+  $wgExternBib = new ExternBib($wgExternBibDBFiles,
 			       $wgExternBibFileDirs, 
 			       $wgExternBibFileBaseURLs, 
 			       $wgExternBibDOIBaseURL,

@@ -3,7 +3,7 @@ if (!defined('MEDIAWIKI')) die();
 
 class ExternBib {
   // the database
-  var $db;
+  var $dbs = array();
   // the currently handled entry
   var $current_entry;
 
@@ -14,17 +14,22 @@ class ExternBib {
   var $eprintbaseurl;
   var $default_format;
 
-  function ExternBib($dbfile, 
+  function ExternBib($dbfiles, 
 		     $filedirs,
 		     $filebaseurls,
 		     $doibaseurl,
 		     $eprintbaseurl,
 		     $default_format) {
-    if (!is_file($dbfile))
-      error_log("ERROR: $dbfile does not exist!");
-    $this->db = dba_open($dbfile, 'rd');
-    if (!$this->db)
-      error_log("ERROR: Could not open $dbfile!");
+    if (!is_file(reset($dbfiles)))
+      error_log("ERROR: $dbfiles[0] does not exist!");
+    
+    if (!($this->dbs["icp"] = dba_open($dbfiles["icp"], 'rd'))) {
+          error_log("ERROR: Could not open $dbfiles[icp]!");
+    }
+    
+    if (!($this->dbs["library"] = dba_open($dbfiles["library"], 'rd'))) {
+          error_log("ERROR: Could not open $dbfiles[library]!");
+    }
 
     if (is_array($filedirs))
       $this->filedirs = $filedirs;
@@ -63,7 +68,7 @@ class ExternBib {
 
     // start writing into the output buffer
     ob_start();
-
+    
     echo "<ul class=\"plainlinks\">\n";
     $this->format_entries($entries, $argv);
     echo "</ul>\n";
@@ -128,7 +133,7 @@ class ExternBib {
   // otherwise return the default
   function getb($key, $default = "", $format="%s") {
     if ($this->issetb($key)) 
-      return sprintf($format, $this->current_entry[$key]);
+    return sprintf($format, $this->current_entry[$key]);
     else return $default;
   }
 
@@ -162,6 +167,8 @@ class ExternBib {
   //  - compact: insert line breaks or not
   function format_entries($entries, $argv=array()) {
     global $wgUser;
+    
+    $dbname = reset($this->dbs);
     if (count($entries) == 0)
       return;
 
@@ -187,16 +194,47 @@ class ExternBib {
 
     foreach ($entries as $entry) {
       // fetch the entry
-      $data = dba_fetch($entry, $this->db);
-      if (!$data) {
-	echo "<li class=\"error\">";
-	echo wfMsg('externbib-entry-notfound', $entry);
-	echo "</li>\n";
-	continue;
-      } 
-
+      
+      // use db name if given
+      if(is_array($entry) && array_key_exists("db", $entry))
+      {
+         $data = dba_fetch(reset($entry), $this->dbs[$entry["db"]]);
+         $dbname = $entry["db"];
+         
+         if (!$data) {
+	   echo "<li class=\"error\">";
+	   echo wfMsg('externbib-entry-notfound', reset($entry));
+	   echo "</li>\n";
+	   continue;
+         }
+         $entry = reset($entry);
+      } else {
+         // else check in each database if entry exists
+         for (reset($this->dbs); (current($this->dbs) !== false) && !isset($data); next($this->dbs))
+           $data = dba_fetch($entry, current($this->dbs));
+            
+         $dbname = key($this->dbs);
+         
+         if (!$data) {
+	   echo "<li class=\"error\">";
+	   echo wfMsg('externbib-entry-notfound', $entry);
+	   echo "</li>\n";
+	   continue;
+         }
+      }
+      
+      
+      
+      //if(is_array($entry) && array_key_exists("db", $entry))
+      //   $dbname = $entry["db"];
+      //elseif (isset($this->dbs))
+      //   $dbname = key($this->dbs);
+         
+      reset($this->dbs);
+      
       // current entry is used by getb and issetb
       $this->current_entry = unserialize($data);
+      unset($data);
      
       // check whether the entry is superseded by another one
       if ($this->issetb("superseded")) {
@@ -350,7 +388,7 @@ class ExternBib {
       default:
 	echo $this->getb("year", "", "<b>%s</b>.\n");
       break;
-      }
+      } //end switch
 
       // Notes
       if ($this->issetb("note")) {
@@ -412,13 +450,13 @@ class ExternBib {
 	echo "<div style=\"margin-left:1em;font-size:90%;\">";
 	if ($this->issetb('timestamp') && $this->issetb('owner'))
 	  echo wfMsg('externbib-enteredon', 
-		     $this->getb("owner"), $this->getb("timestamp"));
+		     $this->getb("owner"), $this->getb("timestamp"), $dbname);
 	elseif ($this->issetb('timestamp'))
 	  echo wfMsg('externbib-enteredon-noowner', 
-		     $this->getb("timestamp"));
+		     $this->getb("timestamp"), $dbname);
 	else
 	  echo wfMsg('externbib-enteredon-notimestamp', 
-		     $this->getb("owner"));
+		     $this->getb("owner"), $dbname);
 
 	echo "</div>\n";
       }
@@ -431,7 +469,7 @@ class ExternBib {
       }
     
       echo "</li>\n";
-    }
+    } //end foreach
 
     echo "</ul>\n";
   } // end format_entry  
@@ -493,60 +531,76 @@ class ExternBib {
     return $query;
   }
 
-  function search_entries($querystring) {
+  function search_entries($querystring, $databases = array()) {
+    //search in all databases if none specified
+    
+    if (!is_array($databases))
+       $databases = array($databases => $databases);
+    elseif (count($databases) == 0)
+       $databases = array_keys($this->dbs);
+       
     $query = $this->parse_query($querystring);
     if (!is_array($query)) return $query;
 
-    // fetch all entries into data array
+    // fetch all entries of the given databases into data array
     if (!isset($this->data)) {
-      $entry = dba_firstkey($this->db);
-      while ($entry) {
-	$record=unserialize(dba_fetch($entry, $this->db));
-	$this->data[$entry] = $record;
-	$entry = dba_nextkey($this->db);
-      }
+       foreach($databases as $database)
+       {
+          $entry = dba_firstkey($this->dbs[$database]);
+          while ($entry) {
+	     $record=unserialize(dba_fetch($entry, $this->dbs[$database]));
+	     $this->data[$entry] = array_merge($record, array("db" => $database));
+	     $entry = dba_nextkey($this->dbs[$database]);
+          }
+       }
     }
 
     // now query the data
     $selection = array_keys($this->data);
-    foreach ($query as $phrase) {
-      $newselection = array();
-      $key=$phrase[0];
-      $op=$phrase[1];
-      $searchvalue=$phrase[2];
+    if (is_array($selection) && count($selection) > 0)
+    {
+       foreach ($query as $phrase) {
+         $newselection = array();
+         $key=$phrase[0];
+         $op=$phrase[1];
+         $searchvalue=$phrase[2];
       
-      switch ($op) {
-      case "contains":
-	foreach ($selection as $entry) {
-	  if (array_key_exists($key, $this->data[$entry])) {
-	    $value = $this->data[$entry][$key];
-	    if (mb_strpos(mb_strtolower($value), mb_strtolower($searchvalue)) !== FALSE)
-	      $newselection[] = $entry;
-	  } 
-	}
-	break;
-      case "greater":
-	foreach ($selection as $entry) {
-	  if (array_key_exists($key, $this->data[$entry])) {
-	    $value = $this->data[$entry][$key];
-	    if ($value > $searchvalue)
-	      $newselection[] = $entry;
-	  }
-	}
-	break;
-      case "less":
-	foreach ($selection as $entry) {
-	  if (array_key_exists($key, $this->data[$entry])) {
-	    $value = $this->data[$entry][$key];
-	    if ($value < $searchvalue)
-	      $newselection[] = $entry;
-	  }
-	}
-	break;
-      }
-      $selection = $newselection;
+         switch ($op) {
+         case "contains":
+	   foreach ($selection as $entry) {
+	     if (array_key_exists($key, $this->data[$entry])) {
+	       $value = $this->data[$entry][$key];
+	       if (mb_strpos(mb_strtolower($value), mb_strtolower($searchvalue)) !== FALSE)
+	         $newselection[] = $entry;
+	     } 
+	   }
+	   break;
+         case "greater":
+	   foreach ($selection as $entry) {
+	     if (array_key_exists($key, $this->data[$entry])) {
+	       $value = $this->data[$entry][$key];
+	       if ($value > $searchvalue)
+	         $newselection[] = $entry;
+	     }
+	   }
+	   break;
+         case "less":
+	   foreach ($selection as $entry) {
+	     if (array_key_exists($key, $this->data[$entry])) {
+	       $value = $this->data[$entry][$key];
+	       if ($value < $searchvalue)
+	         $newselection[] = $entry;
+	     }
+	   }
+	   break;
+         }
+         $selection = $newselection;
+       }
     }
-
+    foreach ($selection as $entry)
+    {
+       $ret_selection[] = array($entry, "db" => $this->data[$entry]["db"]);
+    }
     return $selection;
   }
 }
