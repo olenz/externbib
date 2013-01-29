@@ -261,12 +261,13 @@ class ExternBib {
 
       if ($meta) echo "[$entry]<br/>\n";
     
-      echo "<b>". $this->getb("author", "Unknown author") . ". </b>";
-    
-      if (!$compact) echo "<br/>";
-      echo "\n";
+      if ($this->getb("author") || $this->getb("entryType") != "book" ) {
+        echo $this->getb("author", "Unknown author") . ". ";
+        if (!$compact) echo "<br/>";
+        echo "\n";
+      }
   
-      echo $this->getb("title", "Unknown title.", "\"%s\".");
+      echo "<b>" . $this->getb("title", "Unknown title.", "\"%s\".") . "</b>";
       if (!$compact) echo "<br/>";
       echo "\n";
 
