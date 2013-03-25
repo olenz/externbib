@@ -284,7 +284,7 @@ class ExternBib {
       case "book":
 	echo $this->getb("series", "", "<i>%s</i>, ");
 	echo $this->getb("publisher", "Unknown publisher", "%s");
-	echo $this->getb("editor", "Unknown editor", ", %s");
+	echo $this->getb("editor", "", ", %s");
 	echo $this->getb("address", "", ", %s");
 	echo $this->getb("year", "", ", <b>%s</b>"); 
 	echo ". \n";
