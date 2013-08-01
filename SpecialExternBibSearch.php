@@ -2,7 +2,6 @@
 class SpecialExternBibSearch extends SpecialPage {
   function __construct() {
     parent::__construct( 'ExternBibSearch' );
-    wfLoadExtensionMessages('ExternBib');
   }
   
   function execute( $par ) {

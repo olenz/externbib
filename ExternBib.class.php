@@ -14,12 +14,12 @@ class ExternBib {
   var $eprintbaseurl;
   var $default_format;
 
-  function ExternBib($dbfiles, 
-		     $filedirs,
-		     $filebaseurls,
-		     $doibaseurl,
-		     $eprintbaseurl,
-		     $default_format) {
+  function __construct($dbfiles, 
+                       $filedirs,
+                       $filebaseurls,
+                       $doibaseurl,
+                       $eprintbaseurl,
+                       $default_format) {
     if (!is_file(reset($dbfiles)))
       error_log("ERROR: $dbfiles[0] does not exist!");
     
@@ -47,6 +47,13 @@ class ExternBib {
     $this->doibaseurl = $doibaseurl;
     $this->eprintbaseurl = $eprintbaseurl;
     $this->default_format = $default_format;
+  }
+
+  function __destruct() {
+    if ($this->dbs["icp"])
+      dba_close($this->dbs["icp"]);
+    if ($this->dbs["library"])
+    dba_close($this->dbs["library"]);
   }
 
   //////////////////////////////////////////////////

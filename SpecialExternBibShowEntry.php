@@ -2,7 +2,6 @@
 class SpecialExternBibShowEntry extends SpecialPage {
   function __construct() {
     parent::__construct( 'ExternBibShowEntry' );
-    wfLoadExtensionMessages('ExternBib');
   }
   
   function execute( $par ) {

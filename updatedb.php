@@ -190,7 +190,7 @@ print "Optimizing database ...\n";
 dba_optimize($db);
   
 dba_close($db);
-print "Read all data.\n";
+print "Wrote all data.\n";
 
 print "Finished.\n";
 
