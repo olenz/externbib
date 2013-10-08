@@ -14,19 +14,21 @@ class ExternBib {
   var $eprintbaseurl;
   var $default_format;
 
-  function __construct($dbfiles, 
-                       $filedirs,
-                       $filebaseurls,
-                       $doibaseurl,
-                       $eprintbaseurl,
-                       $default_format) {
+  function ExternBib($dbfiles, 
+		     $filedirs,
+		     $filebaseurls,
+		     $doibaseurl,
+		     $eprintbaseurl,
+		     $default_format) {
     if (!is_file(reset($dbfiles)))
       error_log("ERROR: $dbfiles[0] does not exist!");
     
-    if (!($this->dbs["icp"] = dba_open($dbfiles["icp"], 'rd'))) {
-          error_log("ERROR: Could not open $dbfiles[icp]!");
+    foreach ($dbfiles as $name => $dbfile){
+      if (!($this->dbs[$name] = dba_open($dbfile, 'rd'))) {
+	error_log("ERROR: Could not open $dbfiles[$name]!");
+      }
     }
-    
+        
     if (!($this->dbs["library"] = dba_open($dbfiles["library"], 'rd'))) {
           error_log("ERROR: Could not open $dbfiles[library]!");
     }
@@ -47,13 +49,6 @@ class ExternBib {
     $this->doibaseurl = $doibaseurl;
     $this->eprintbaseurl = $eprintbaseurl;
     $this->default_format = $default_format;
-  }
-
-  function __destruct() {
-    if ($this->dbs["icp"])
-      dba_close($this->dbs["icp"]);
-    if ($this->dbs["library"])
-    dba_close($this->dbs["library"]);
   }
 
   //////////////////////////////////////////////////
@@ -216,9 +211,10 @@ class ExternBib {
          }
          $entry = reset($entry);
       } else {
-         // else check in each database if entry exists
-         for (reset($this->dbs); (current($this->dbs) !== false) && !isset($data); next($this->dbs))
-           $data = dba_fetch($entry, current($this->dbs));
+	// else check in each database if entry exists
+	for (reset($this->dbs); (current($this->dbs) !== false) && !isset($data); next($this->dbs)){
+	  $data = dba_fetch($entry, current($this->dbs));
+	}
             
          $dbname = key($this->dbs);
          
@@ -300,21 +296,21 @@ class ExternBib {
       case "inbook":
       case "incollection":
 	echo "In ";
-      echo "<i>" . $this->getb("booktitle", "unknown booktitle") . "</i>";
-      if ($this->issetb("series") || $this->issetb("volume")) {
-	echo ", volume " . $this->getb("volume") . " of ";
-	echo "<i>" . $this->getb("series", "") . "</i>";
-      }
-      echo $this->getb("chapter", "", ", chapter %s");
-      echo $this->getb("pages", "", ", pages %s");
-      echo ".";
-      echo $this->getb("editor", "", " Editors: %s,\n");
-      if (!$compact) echo "<br/>";
-      echo "\n";
-      echo $this->getb("publisher", "Unknown publisher");
-      echo $this->getb("address", "", ", %s");
-      echo $this->getb("year", "", ", <b>%s</b>");
-      echo ". \n";
+        echo "<i>" . $this->getb("booktitle", "unknown booktitle") . "</i>";
+	if ($this->issetb("series") || $this->issetb("volume")) {
+	  echo ", volume " . $this->getb("volume") . " of ";
+	  echo "<i>" . $this->getb("series", "") . "</i>";
+	}
+	echo $this->getb("chapter", "", ", chapter %s");
+	echo $this->getb("pages", "", ", pages %s");
+	echo ".";
+	echo $this->getb("editor", "", " Editors: %s,\n");
+	if (!$compact) echo "<br/>";
+	echo "\n";
+	echo $this->getb("publisher", "Unknown publisher");
+	echo $this->getb("address", "", ", %s");
+	echo $this->getb("year", "", ", <b>%s</b>");
+	echo ". \n";
       break;
 
       case "conference":
