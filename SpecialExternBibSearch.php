@@ -5,7 +5,7 @@ class SpecialExternBibSearch extends SpecialPage {
   }
   
   function execute( $par ) {
-    global $wgRequest, $wgOut, $wgUser, $wgExternBib, $wgExternBibDBFiles;
+    global $wgRequest, $wgOut, $wgUser, $wgExternBib, $wgExternBibDBFiles, $wgExternBibDBNames;
     
     $this->setHeaders();
     
@@ -23,33 +23,22 @@ class SpecialExternBibSearch extends SpecialPage {
     <form name="searchform2" action="" method="get">
        <input style="width:400px" type="text" name="query" value="<?php print htmlspecialchars($query) ?>"/><br>
        <?php
-          echo '<input type="radio" name="databases" value="icp"';
-          if ($databases && strpos($databases, "icp") === false)
-             echo '> ICP.bib<br>';
-          else
-             echo 'checked="checked"> ICP.bib<br>';
-             
-          echo '<input type="radio" name="databases" value="library"';
-          if ($databases)
-          {
-             if (strpos($databases, "library") !== false)
-                echo 'checked="checked"';
-          }
-          echo '> ICP-Library.bib<br>';
-          
-          /*  problem with identical keys in both files
-          echo '<input type="checkbox" name="databases[icp]" value="icp"';
-          if ($databases && !array_key_exists("icp", $databases))
-             echo '> ICP.bib<br>';
-          else
-             echo 'checked="checked"> ICP.bib<br>';
-             
-          echo '<input type="checkbox" name="databases[library]" value="library"';
-          if ($databases && !array_key_exists("library", $databases))
-             echo '> ICP-Library.bib<br>';
-          else
-             echo 'checked="checked"> ICP-Library.bib<br>';
-             */
+       if (count($wgExternBibDBFiles)>1){
+	 foreach ($wgExternBibDBFiles as $key => $url){
+	   if ($databases==""){ // use first one as default;
+	     $databases=$key;
+	   }
+	   echo '<input type="radio" name="databases" value="'.$key.'"';
+	   if ($databases == $key)
+	     echo 'checked="checked"';
+	   if (isset($wgExternBibDBNames[$key])){
+	     echo "> ".$wgExternBibDBNames[$key]."<br>";
+	   }
+	   else{
+	     echo "> $key<br>";
+	   }
+	 }
+       }
        ?>
        <input type="submit" value="Search"/>
        </form>
