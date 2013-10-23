@@ -29,10 +29,6 @@ class ExternBib {
       }
     }
         
-    if (!($this->dbs["library"] = dba_open($dbfiles["library"], 'rd'))) {
-          error_log("ERROR: Could not open $dbfiles[library]!");
-    }
-
     if (is_array($filedirs))
       $this->filedirs = $filedirs;
     else

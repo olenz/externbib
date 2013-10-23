@@ -8,7 +8,7 @@ $wgExternBibCredits =
   array(
 	'name' => 'ExternBib',
 	'version' => '2.0',
-	'author' => 'Olaf Lenz, Christopher Wagner',
+	'author' => 'Olaf Lenz, David Schwörer, Christopher Wagner',
 	'url' => 'https://github.com/olenz/externbib',
 	'description' => 'Cite an external bibtex file.',
 	'descriptionmsg' => 'externbib-desc',
