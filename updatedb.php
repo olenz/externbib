@@ -130,14 +130,27 @@ $bibtex->setOption("removeCurlyBraces", true);
 $bibtex->setOption("unwrap", true);
 $bibtex->setOption("storeFullEntries", true);
 
+$outputdb_new = "$outputdb.new";
+echo "Writing data into $outputdb_new...\n";
+
+if (file_exists($outputdb_new)) {
+  error_log("$script: WARNING: output file $outputdb_new already exists. Deleting old file.");
+  unlink($outputdb_new);
+ }
+$db = dba_open($outputdb_new, 'nd');
+if (!$db) {
+  error_log("ERROR: Could not open $outputdb_new for writing!");
+  exit(1);
+ }
+
 foreach ($bibfiles as $bibfile) {
-  print "Loading $bibfile...\n";
+  echo "Loading $bibfile...\n";
   $ret    = $bibtex->loadFile($bibfile);
   if (PEAR::isError($ret)) {
     die($ret->getMessage());
   }
   
-  print "Parsing $bibfile...\n";
+  echo "Parsing $bibfile...\n";
   $bibtex->parse();
   if ($bibtex->hasWarning()) {
     foreach ($bibtex->warnings as $warning) {
@@ -146,21 +159,8 @@ foreach ($bibfiles as $bibfile) {
     }
   }
   
-  print "Found " . $bibtex->amount() . " entries.\n";
+  echo "Found " . $bibtex->amount() . " entries.\n";
 
-  print "Writing data into $outputdb...\n";
-
-  if (!$dryrun) {
-    if (file_exists($outputdb)) {
-      error_log("$script: WARNING: output file $outputdb already exists. Deleting old file.");
-      unlink($outputdb);
-    }
-    $db = dba_open($outputdb, 'nd');
-    if (!$db) {
-      error_log("ERROR: Could not open $outputdb for writing!");
-      exit(1);
-    }
-  }
   foreach ($bibtex->data as $entry) {
     // create associative array
     $key  = $entry['cite'];
@@ -175,23 +175,31 @@ foreach ($bibfiles as $bibfile) {
     }
     $value = serialize($cleanentry);
 
-    if (!$dryrun)
-      dba_insert($key, $value, $db);
+    dba_insert($key, $value, $db);
   }
-
 }
+
+echo "Optimizing database ...\n";
+dba_optimize($db);
+
+dba_close($db);
+echo "Wrote all data.\n";
 
 if ($dryrun) {
   echo "Dry run. Exiting.\n";
   exit(0);
-}
+ } else {
 
-print "Optimizing database ...\n";
-dba_optimize($db);
+  // remove old file
+  echo "Removing $outputdb...\n";
+  if (file_exists($outputdb))
+    unlink($outputdb);
   
-dba_close($db);
-print "Wrote all data.\n";
-
-print "Finished.\n";
-
+  // rename new file 
+  echo "Renaming $outputdb_new to $outputdb...\n";
+  rename($outputdb_new, $outputdb);
+  
+  echo "Finished.\n";
+  exit(0);
+ }
 ?>
