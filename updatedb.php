@@ -130,14 +130,10 @@ $bibtex->setOption("removeCurlyBraces", true);
 $bibtex->setOption("unwrap", true);
 $bibtex->setOption("storeFullEntries", true);
 
-$outputdb_new = "$outputdb.new";
+$outputdb_new = tempnam("/tmp", "$outputdb");
 echo "Writing data into $outputdb_new...\n";
 
-if (file_exists($outputdb_new)) {
-  error_log("$script: WARNING: output file $outputdb_new already exists. Deleting old file.");
-  unlink($outputdb_new);
- }
-$db = dba_open($outputdb_new, 'nd');
+$db = dba_open($outputdb_new, 'n');
 if (!$db) {
   error_log("ERROR: Could not open $outputdb_new for writing!");
   exit(1);
