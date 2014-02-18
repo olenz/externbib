@@ -131,8 +131,12 @@ $bibtex->setOption("unwrap", true);
 $bibtex->setOption("storeFullEntries", true);
 
 $outputdb_new = tempnam("/tmp", "$outputdb");
-echo "Writing data into $outputdb_new...\n";
+echo "Opening $outputdb_new...\n";
 
+echo "Setting permissions on file...\n";
+chmod($outputdb_new, 0644);
+
+echo "Writing data into file...\n";
 $db = dba_open($outputdb_new, 'n');
 if (!$db) {
   error_log("ERROR: Could not open $outputdb_new for writing!");
@@ -180,6 +184,7 @@ dba_optimize($db);
 
 dba_close($db);
 echo "Wrote all data.\n";
+
 
 if ($dryrun) {
   echo "Dry run. Exiting.\n";
