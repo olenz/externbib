@@ -2,6 +2,7 @@
 // include include/BibTex.php
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR 
 	     . 'include' .  DIRECTORY_SEPARATOR . 'BibTex.php');
+require_once("bibdb.php");
 $script = array_shift($argv);
 			  
 function usage() {
@@ -137,8 +138,8 @@ echo "Setting permissions on file...\n";
 chmod($outputdb_new, 0644);
 
 echo "Writing data into file...\n";
-$db = dba_open($outputdb_new, 'n');
-if (!$db) {
+$db = bibdb_open($outputdb_new, 'n');
+if (is_bool($db)) {
   error_log("ERROR: Could not open $outputdb_new for writing!");
   exit(1);
  }
@@ -174,15 +175,12 @@ foreach ($bibfiles as $bibfile) {
       $cleanentry[$k] = $v;
     }
     $value = serialize($cleanentry);
-
-    dba_insert($key, $value, $db);
+    bibdb_insert($key, $value, $db);
   }
 }
 
-echo "Optimizing database ...\n";
-dba_optimize($db);
 
-dba_close($db);
+bibdb_close($db);
 echo "Wrote all data.\n";
 
 

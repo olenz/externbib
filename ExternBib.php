@@ -1,7 +1,7 @@
 <?php
 if (!defined('MEDIAWIKI')) die();
 
-require_once( "$IP/includes/SpecialPage.php" );
+//require_once( "$IP/includes/SpecialPage.php" );
 
 // Interface to mediawiki
 $wgExternBibCredits =

@@ -1,5 +1,7 @@
 <?php
 if (!defined('MEDIAWIKI')) die();
+require_once("bibdb.php");
+
 
 class ExternBib {
   // the database
@@ -14,7 +16,7 @@ class ExternBib {
   var $eprintbaseurl;
   var $default_format;
 
-  function ExternBib($dbfiles, 
+  function __construct($dbfiles, 
 		     $filedirs,
 		     $filebaseurls,
 		     $doibaseurl,
@@ -24,11 +26,15 @@ class ExternBib {
       error_log("ERROR: $dbfiles[0] does not exist!");
     
     foreach ($dbfiles as $name => $dbfile){
-      if (!($this->dbs[$name] = dba_open($dbfile, 'rd'))) {
+      // bibdb_open returns a sqlite db object on success, a false else
+      $db_local = bibdb_open($dbfile, 'rd');
+      if (is_bool($db_local)) {
 	error_log("ERROR: Could not open $dbfiles[$name]!");
+      } else {
+        $this->dbs[$name] = $db_local;
       }
     }
-        
+     
     if (is_array($filedirs))
       $this->filedirs = $filedirs;
     else
@@ -196,12 +202,12 @@ class ExternBib {
       // use db name if given
       if(is_array($entry) && array_key_exists("db", $entry))
       {
-         $data = dba_fetch(reset($entry), $this->dbs[$entry["db"]]);
+         $data = bibdb_fetch(reset($entry), $this->dbs[$entry["db"]]);
          $dbname = $entry["db"];
          
          if (!$data) {
 	   echo "<li class=\"error\">";
-	   echo wfMsg('externbib-entry-notfound', reset($entry));
+	   echo wfMessage('externbib-entry-notfound', reset($entry));
 	   echo "</li>\n";
 	   continue;
          }
@@ -209,25 +215,18 @@ class ExternBib {
       } else {
 	// else check in each database if entry exists
 	for (reset($this->dbs); (current($this->dbs) !== false) && !isset($data); next($this->dbs)){
-	  $data = dba_fetch($entry, current($this->dbs));
+	  $data = bibdb_fetch($entry, current($this->dbs));
 	}
             
          $dbname = key($this->dbs);
          
          if (!$data) {
 	   echo "<li class=\"error\">";
-	   echo wfMsg('externbib-entry-notfound', $entry);
+	   echo wfMessage('externbib-entry-notfound', $entry);
 	   echo "</li>\n";
 	   continue;
          }
       }
-      
-      
-      
-      //if(is_array($entry) && array_key_exists("db", $entry))
-      //   $dbname = $entry["db"];
-      //elseif (isset($this->dbs))
-      //   $dbname = key($this->dbs);
          
       reset($this->dbs);
       
@@ -241,10 +240,10 @@ class ExternBib {
 	  $superseded = $this->getb("superseded");
 	  $supersededLink = 
 	    $this->fullEntryLink($superseded, 
-				 wfMsg('externbib-fullentry'));
+				 wfMessage('externbib-fullentry'));
 
 	  echo "<li class=\"warning\">";
-	  echo wfMsg('externbib-entry-superseded', 
+	  echo wfMessage('externbib-entry-superseded', 
 		     $entry,
 		     $superseded,
 		     $supersededLink
@@ -402,7 +401,7 @@ class ExternBib {
       // link to full entry
       if ($fullentrylink)
 	echo $this->fullEntryLink($entry, '[' . 
-				  wfMsg('externbib-fullentry') . 
+				  wfMessage('externbib-fullentry') . 
 				  ']') . "\n";
 
       // link to files
@@ -449,13 +448,13 @@ class ExternBib {
 	  ($this->issetb('timestamp') || $this->issetb('owner'))) {
 	echo "<div style=\"margin-left:1em;font-size:90%;\">";
 	if ($this->issetb('timestamp') && $this->issetb('owner'))
-	  echo wfMsg('externbib-enteredon', 
+	  echo wfMessage('externbib-enteredon', 
 		     $this->getb("owner"), $this->getb("timestamp"), $dbname);
 	elseif ($this->issetb('timestamp'))
-	  echo wfMsg('externbib-enteredon-noowner', 
+	  echo wfMessage('externbib-enteredon-noowner', 
 		     $this->getb("timestamp"), $dbname);
 	else
-	  echo wfMsg('externbib-enteredon-notimestamp', 
+	  echo wfMessage('externbib-enteredon-notimestamp', 
 		     $this->getb("owner"), $dbname);
 
 	echo "</div>\n";
@@ -546,11 +545,12 @@ class ExternBib {
     if (!isset($this->data)) {
        foreach($databases as $database)
        {
-          $entry = dba_firstkey($this->dbs[$database]);
-          while ($entry) {
-	     $record=unserialize(dba_fetch($entry, $this->dbs[$database]));
-	     $this->data[$entry] = array_merge($record, array("db" => $database));
-	     $entry = dba_nextkey($this->dbs[$database]);
+          //$entry = dba_firstkey($this->dbs[$database]);
+          $query_local = bibdb_query($this->dbs[$database]);
+          while ($row = $query_local->fetchArray(SQLITE3_NUM)) {
+              $entry = $row[0];
+              $record = unserialize($row[1]);
+              $this->data[$entry] = array_merge($record, array("db" => $database));
           }
        }
     }

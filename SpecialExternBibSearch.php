@@ -18,7 +18,7 @@ class SpecialExternBibSearch extends SpecialPage {
     $databases = $wgRequest->getVal('databases');
 
     echo "<p>";
-    echo wfMsg('externbib-enterquery'); 
+    echo wfMessage('externbib-enterquery')->text(); 
     ?>:<br/>
     <form name="searchform2" action="" method="get">
        <input style="width:400px" type="text" name="query" value="<?php print htmlspecialchars($query) ?>"/><br>
@@ -45,7 +45,7 @@ class SpecialExternBibSearch extends SpecialPage {
        </p>
        <?php
        if ($query) {
-	 echo "<h2>" . wfMsg('externbib-results') . "</h2>\n";
+	 echo "<h2>" . wfMessage('externbib-results')->text() . "</h2>\n";
 	 //$error = 0;
 	 //$no_entries = 0;
 	 //$nbr_entries = 0;
@@ -72,14 +72,14 @@ class SpecialExternBibSearch extends SpecialPage {
 	 if (!is_array($found_entries)) {
 	   echo '<p class="error">' . $found_entries . "</p>\n";
 	 } elseif (count($found_entries) == 0) {
-	   echo '<p class="error">' . wfMsg('externbib-noresults') . "</p>\n";
+	   echo '<p class="error">' . wfMessage('externbib-noresults')->text() . "</p>\n";
 	 } else {
 	   if ($wgUser->isLoggedIn()) {
 	     $format_options = array( "meta" => 1, "pdflink" => 1, );
 	   } else {
 	     $format_options = array();
 	   }
-	   echo '<p>' . wfMsg('externbib-gotentries', count($found_entries)) . "</p>\n";
+	   echo '<p>' . wfMessage('externbib-gotentries', count($found_entries))->text() . "</p>\n";
 	   
            $wgExternBib->format_entries($found_entries, $format_options);
 	 }
@@ -93,9 +93,9 @@ class SpecialExternBibSearch extends SpecialPage {
 	   }
 	   echo "</p>\n";
 	 } elseif ($no_entries == count($wgExternBibDBFiles) || ($no_entries + $error) == count($wgExternBibDBFiles)) {
-	   echo '<p class="error">' . wfMsg('externbib-noresults') . "</p>\n";
+	   echo '<p class="error">' . wfMessage('externbib-noresults')->text() . "</p>\n";
 	 } else {
-	   echo '<p>' . wfMsg('externbib-gotentries', $nbr_entries) . "</p>\n";
+	   echo '<p>' . wfMessage('externbib-gotentries', $nbr_entries)->text() . "</p>\n";
 	   foreach ($database_ok as $database)
 	   {
 	   echo $database;
