@@ -64,7 +64,7 @@ class ExternBib {
 
     // TODO: check whether this can be avoided
     // disable the cache
-    $parser->disableCache();
+    $parser->mOutput->updateCacheExpiry( 0 );
 
     // parse $input and split it into entries
     $input = trim($input);
@@ -91,7 +91,7 @@ class ExternBib {
   function bibsearch( $input, $argv, $parser, $frame ) {
     // TODO: check whether this can be avoided
     // disable the cache
-    $parser->disableCache();
+    $parser->mOutput->updateCacheExpiry( 0 );
     
     // start writing into the output buffer
     ob_start();
