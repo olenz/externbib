@@ -19,7 +19,8 @@ class SpecialExternBibSearch extends SpecialPage {
 
     echo "<p>";
     echo wfMessage('externbib-enterquery')->text(); 
-    ?>:<br/>
+    echo ":</p>";
+    ?> 
     <form name="searchform2" action="" method="get">
        <input style="width:400px" type="text" name="query" value="<?php print htmlspecialchars($query) ?>"/><br>
        <?php
@@ -30,7 +31,7 @@ class SpecialExternBibSearch extends SpecialPage {
 	   }
 	   echo '<input type="radio" name="databases" value="'.$key.'"';
 	   if ($databases == $key)
-	     echo 'checked="checked"';
+	     echo ' checked="checked"';
 	   if (isset($wgExternBibDBNames[$key])){
 	     echo "> ".$wgExternBibDBNames[$key]."<br>";
 	   }
@@ -42,7 +43,6 @@ class SpecialExternBibSearch extends SpecialPage {
        ?>
        <input type="submit" value="Search"/>
        </form>
-       </p>
        <?php
        if ($query) {
 	 echo "<h2>" . wfMessage('externbib-results')->text() . "</h2>\n";
