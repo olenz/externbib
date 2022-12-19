@@ -115,16 +115,14 @@ class ExternBib {
   // helper functions
   //////////////////////////////////////////////////
   // returns whether $key exists in the array and whether it is true
-  function array_isset($key, $array, $defaults) {
-    return 
-      (array_key_exists($key, $array) 
-       && ($array[$key]==true 
-	   || $array[$key]=="yes" 
-	   || $array[$key]==1))
-      || (array_key_exists($key, $defaults) && 
-	  ($defaults[$key]==true ||
-	   $defaults[$key]=="yes" ||
-	   $defaults[$key]==1));
+  private function array_isset($key, $array, $defaults) {
+    $value = false;
+    if (array_key_exists($key, $array)) {
+      $value = $array[$key];
+    } elseif (array_key_exists($key, $defaults)) {
+      $value = $defaults[$key];
+    }
+    return $value === true or $value === "true" or $value === "yes" or $value === 1;
   }
 
   // returns whether the field $key for the current entry is set
