@@ -23,7 +23,7 @@
    * @link       http://pear.php.net/package/Structures_BibTex
    */
 
-require_once 'PEAR.php' ;
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'PEAR.php');
 /**
  * Structures_BibTex
  *
