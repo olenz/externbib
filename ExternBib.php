@@ -1,4 +1,14 @@
 <?php
+/**
+ * Main code that connects Mediawiki to the ExternBib extension.
+ *
+ * @package    ExternBib
+ * @author     Olaf Lenz
+ * @author     Michael Kuron
+ * @copyright  2011-2013,2016 The Authors
+ * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
+ * @link       https://github.com/olenz/externbib
+ */
 if (!defined('MEDIAWIKI')) die();
 
 //require_once( "$IP/includes/SpecialPage.php" );

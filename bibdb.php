@@ -1,4 +1,14 @@
 <?php
+/**
+ * SQL queries.
+ *
+ * @package    ExternBib
+ * @author     Michael Kuron
+ * @copyright  2016 The Authors
+ * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
+ * @link       https://github.com/olenz/externbib
+ */
+
     // alternative sqlite functions for the dba_* functions
     function bibdb_open($path, $mode, $table="default_table")
     {

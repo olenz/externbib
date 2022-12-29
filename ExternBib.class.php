@@ -1,4 +1,16 @@
 <?php
+/**
+ * Definition of the main class that opens cursors to SQLite databases,
+ * handles user queries and formats search results as HTML.
+ *
+ * @package    ExternBib
+ * @author     Olaf Lenz
+ * @author     David Schwoerer
+ * @author     Michael Kuron
+ * @copyright  2011-2013,2016,2021 The Authors
+ * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
+ * @link       https://github.com/olenz/externbib
+ */
 if (!defined('MEDIAWIKI')) die();
 require_once("bibdb.php");
 

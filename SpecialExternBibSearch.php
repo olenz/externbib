@@ -1,4 +1,15 @@
 <?php
+/**
+ * Mediawiki special page to query a BibTeX database.
+ *
+ * @package    ExternBib
+ * @author     Olaf Lenz
+ * @author     David Schwoerer
+ * @author     Michael Kuron
+ * @copyright  2011-2013,2016 The Authors
+ * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
+ * @link       https://github.com/olenz/externbib
+ */
 class SpecialExternBibSearch extends SpecialPage {
   function __construct() {
     parent::__construct( 'ExternBibSearch' );

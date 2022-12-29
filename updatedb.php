@@ -1,4 +1,14 @@
 <?php
+/**
+ * Command-line tool to convert BibTeX files to a SQLite table.
+ *
+ * @package    ExternBib
+ * @author     Olaf Lenz
+ * @author     Michael Kuron
+ * @copyright  2011-2014,2016 The Authors
+ * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
+ * @link       https://github.com/olenz/externbib
+ */
 // include include/BibTex.php
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR 
 	     . 'include' .  DIRECTORY_SEPARATOR . 'BibTex.php');
