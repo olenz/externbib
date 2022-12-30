@@ -5,16 +5,17 @@
  * @package    ExternBib
  * @author     Olaf Lenz
  * @author     Michael Kuron
- * @copyright  2011-2014,2016 The Authors
+ * @author     Jean-Noël Grad
+ * @copyright  2011-2014,2016,2022 The Authors
  * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
  * @link       https://github.com/olenz/externbib
  */
-// include include/BibTex.php
-require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR 
-	     . 'include' .  DIRECTORY_SEPARATOR . 'BibTex.php');
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'include' . DIRECTORY_SEPARATOR . 'BibTex.php');
 require_once("bibdb.php");
+require_once("makedb.php");
+
 $script = array_shift($argv);
-			  
+
 function usage() {
   global $script;
   error_log("Usage: $script [-h] [-?]");
@@ -65,79 +66,6 @@ while (($key = array_pop($pruneargv)) !== NULL) unset($argv[$key]);
 
 $bibfiles = $argv;
 
-// translation of bibtex chars to utf8 chars
-$bibtex2utf8_array=
-array(
-      '\\"a' => "ä", 
-      '\\"A' => "Ä",
-      '\\"e' => "ë",
-      '\\"E' => "Ë",
-      '\\"i' => "ï",
-      '\\"I' => "Ï",
-      '\\"o' => "ö", 
-      '\\"O' => "Ö",
-      '\\"u' => "ü", 
-      '\\"U' => "Ü",
-      '\\\'a' => "á", 
-      '\\\'A' => "Á", 
-      '\\\'e' => "é", 
-      '\\\'E' => "É",
-      '\\\'i' => "í", 
-      '\\\'I' => "Í",
-      '\\\'o' => "ó", 
-      '\\\'O' => "Ó",
-      '\\\'u' => "ú", 
-      '\\\'U' => "Ú",
-      '\\^a' => "â", 
-      '\\^A' => "Â",
-      '\\^e' => "ê", 
-      '\\^E' => "Ê",
-      '\\^i' => "î", 
-      '\\^I' => "Î",
-      '\\^o' => "ô", 
-      '\\^O' => "Ô",
-      '\\^u' => "û", 
-      '\\^U' => "Û",
-      '\\`a' => "à", 
-      '\\`A' => "À",
-      '\\`e' => "è", 
-      '\\`E' => "È",
-      '\\`i' => "ì", 
-      '\\`I' => "Ì",
-      '\\`o' => "ò", 
-      '\\`O' => "Ò",
-      '\\`u' => "ù", 
-      '\\`U' => "Ù",
-      '\\aa' => "å", 
-      '\\AA' => "Å",
-      '\\ae' => "æ",
-      '\\AE' => "Æ",
-      '\\o' => "ø", 
-      '\\O' => "Ø",
-      '\\c c' => "ç", 
-      '\\c C' => "Ç",
-      '---' => '&mdash;',
-      '--' => '–', 
-      '\\-' => '',
-      '~' => ' ',
-      '\\vs' => "&scaron;",
-      '\\&' => "&",
-      );
-			 
-$bibtexenc=array_keys($bibtex2utf8_array);
-$utf8enc=array_values($bibtex2utf8_array);
-
-// Remove bibtex chars from the string
-function bibtex2utf8($string) {
-  global $bibtexenc;
-  global $utf8enc;
-
-  $string = preg_replace('/([^\\\]|^)\}/', '$1' ,$string);
-  $string = preg_replace('/([^\\\]|^)\{/', '$1' ,$string);
-  $string = str_replace($bibtexenc, $utf8enc, $string);
-  return $string;
-}
-
 $bibtex = new Structures_BibTex();
 $bibtex->setOption("extractAuthors", false);
 $bibtex->setOption("removeCurlyBraces", true);
@@ -155,63 +83,29 @@ $db = bibdb_open($outputdb_new, 'n');
 if (is_bool($db)) {
   error_log("ERROR: Could not open $outputdb_new for writing!");
   exit(1);
- }
-
-foreach ($bibfiles as $bibfile) {
-  echo "Loading $bibfile...\n";
-  $ret    = $bibtex->loadFile($bibfile);
-  if (PEAR::isError($ret)) {
-    die($ret->getMessage());
-  }
-  
-  echo "Parsing $bibfile...\n";
-  $bibtex->parse();
-  if ($bibtex->hasWarning()) {
-    foreach ($bibtex->warnings as $warning) {
-      error_log("WARNING: " . $warning['warning'] 
-		. " (line \"" . $warning['entry'] . "\")");
-    }
-  }
-  
-  echo "Found " . $bibtex->amount() . " entries.\n";
-
-  foreach ($bibtex->data as $entry) {
-    // create associative array
-    $key  = $entry['cite'];
-
-    // UTF8-ify and trim entry
-    $cleanentry = array();
-    foreach ($entry as $k=>$v) {
-      $v = trim($v);
-      if ($v != "" && $k != "fullEntry")
-	$v = bibtex2utf8($v); 
-      $cleanentry[$k] = $v;
-    }
-    $value = serialize($cleanentry);
-    bibdb_insert($key, $value, $db);
-  }
 }
 
+foreach ($bibfiles as $bibfile) {
+  populate_db($db, $bibfile, $bibtex);
+}
 
 bibdb_close($db);
 echo "Wrote all data.\n";
 
-
 if ($dryrun) {
   echo "Dry run. Exiting.\n";
   exit(0);
- } else {
+}
 
-  // remove old file
-  echo "Removing $outputdb...\n";
-  if (file_exists($outputdb))
-    unlink($outputdb);
-  
-  // rename new file 
-  echo "Renaming $outputdb_new to $outputdb...\n";
-  rename($outputdb_new, $outputdb);
-  
-  echo "Finished.\n";
-  exit(0);
- }
+// remove old file
+echo "Removing $outputdb...\n";
+if (file_exists($outputdb))
+  unlink($outputdb);
+
+// rename new file
+echo "Renaming $outputdb_new to $outputdb...\n";
+rename($outputdb_new, $outputdb);
+
+echo "Finished.\n";
+exit(0);
 ?>
