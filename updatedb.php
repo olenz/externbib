@@ -11,6 +11,7 @@
  * @link       https://github.com/olenz/externbib
  */
 require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'include' . DIRECTORY_SEPARATOR . 'BibTex.php');
+require_once(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'include' . DIRECTORY_SEPARATOR . 'tex2html.php');
 require_once("bibdb.php");
 require_once("makedb.php");
 
@@ -85,8 +86,9 @@ if (is_bool($db)) {
   exit(1);
 }
 
+$modes = ConversionModes::Newlines | ConversionModes::Diacritics;
 foreach ($bibfiles as $bibfile) {
-  populate_db($db, $bibfile, $bibtex);
+  populate_db($db, $bibfile, $bibtex, $modes);
 }
 
 bibdb_close($db);

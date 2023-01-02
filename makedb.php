@@ -23,9 +23,10 @@ require_once("bibdb.php");
  * @param SQLite3            $db         The SQLite database.
  * @param mixed              $bibfile    The BibTeX file path.
  * @param Structures_BibTex  $bibparser  The BibTeX parser.
+ * @param int                $modes      LaTeX-to-HTML conversions to apply.
  * @return void
  */
-function populate_db($db, $bibfile, $bibparser) {
+function populate_db($db, $bibfile, $bibparser, $modes) {
   echo "Loading $bibfile...\n";
   $ret = $bibparser->loadFile($bibfile);
   if (PEAR::isError($ret)) {
@@ -50,8 +51,9 @@ function populate_db($db, $bibfile, $bibparser) {
     $cleanentry = array();
     foreach ($entry as $k=>$v) {
       $v = trim($v);
-      if ($v != "" && $k != "fullEntry")
-        $v = bibtex2utf8($v);
+      if ($modes != 0 && $v != "" && $k != "fullEntry") {
+        $v = convert_latex_string($v, $modes);
+      }
       $cleanentry[$k] = $v;
     }
     $value = serialize($cleanentry);
