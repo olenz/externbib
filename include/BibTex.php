@@ -828,9 +828,12 @@ class Structures_BibTex
     /**
      * Remove curly braces from entry
      *
+     * Note: This function will break LaTeX macros,
+     * e.g. "\\emph{text}" becomes "\\emphtext".
+     *
      * @access private
      * @param string $value The value in which curly braces to be removed
-     * @param string Value with removed curly braces
+     * @return string Value with removed curly braces
      */
     function _removeCurlyBraces($value)
     {

@@ -14,6 +14,7 @@
 class ConversionModes {
     const Newlines         = 0b00000001; ///< Replace double backslashes by a newline (strongly recommended)
     const Diacritics       = 0b00000010; ///< Remove diacritic escape sequences (see @ref diacritics2utf8)
+    const StripCurlyBraces = 0b00000100; ///< Strip all remaining unescaped curly braces (see @ref strip_curly_braces)
 }
 
 /** Mapping of LaTeX diacritics escape sequences to UTF-8 symbols. */
@@ -409,6 +410,174 @@ function diacritics2utf8($string) {
   return $string;
 }
 
+function math_detect_opening($string, $pos, &$result) {
+  $delimiters = array('\\(' => '\\)', '\\[' => '\\]', '$$' => '$$', '$' => '$', '\\ensuremath{' => '}');
+  $delim_start = '';
+  if ($string[$pos] == '}') {
+    return $pos + 1;
+  } elseif ($string[$pos] == '\\') {
+    if ($string[$pos + 1] == '(') {
+      $delim_start = '\\(';
+    } elseif ($string[$pos + 1] == '[') {
+      $delim_start = '\\[';
+    } elseif ($string[$pos + 1] == 'e' and strcmp("\\ensuremath{", substr($string, $pos, 12)) === 0) {
+      $delim_start = '\\ensuremath{';
+    } else {
+      return $pos + 2;
+    }
+  } elseif ($string[$pos] == '$') {
+    if ($string[$pos + 1] == '$') {
+      $delim_start = '$$';
+    } else {
+      $delim_start = '$';
+    }
+  }
+  $pos_start = $pos;
+  $pos_end = null;
+  $delim_end = $delimiters[$delim_start];
+  $result = [$pos_start, $delim_start, $pos_end, $delim_end, null];
+  return $pos + mb_strlen($delim_start);
+}
+
+function math_detect_closing($string, $pos, &$result) {
+  $needle = $result[3];
+  $found = false;
+  if ($string[$pos] == '\\') {
+    if ($string[$pos + 1] == ')' and $needle == '\\)' or
+        $string[$pos + 1] == ']' and $needle == '\\]') {
+      $found = true;
+    } else {
+      return $pos + 2;
+    }
+  } elseif ($string[$pos] == '$' and
+            ($needle == '$' or $string[$pos + 1] == '$' and $needle == '$$')) {
+    $found = true;
+  } elseif ($string[$pos] == '}' and $needle == '}') {
+    $pos_start = $result[0];
+    $substring = substr($string, $pos_start, $pos - $pos_start + 1);
+    $substring = str_replace('\\\\', '\n', $substring);
+    $substring = str_replace('\\{', '', $substring);
+    $substring = str_replace('\\}', '', $substring);
+    if (substr_count($substring, '{') === substr_count($substring, '}')) {
+      $found = true;
+    } else {
+      return $pos + 1;
+    }
+  }
+  if ($found) {
+    $pos_start = $result[0];
+    $pos_end = $pos + mb_strlen($needle);
+    $result[2] = $pos_end;
+    $result[4] = substr($string, $pos_start + mb_strlen($result[1]), $pos_end - $pos_start - mb_strlen($result[1]) - mb_strlen($result[3]));
+    return $pos_end;
+  }
+  return $pos + 1;
+}
+
+/**
+ * Detect and delimit all math environments.
+ *
+ * @param  string  $string  The BibTeX string.
+ * @return array  The list of environments.
+ */
+function math_extractor($string) {
+  $positions = [];
+  preg_match_all('/\\$|\\\\|\\}/', $string, $matches, PREG_OFFSET_CAPTURE);
+  $result = null;
+  $pos_last = 0;
+  foreach ($matches[0] as $match) {
+    $pos = $match[1];
+    if ($pos >= $pos_last) {
+      if (is_null($result)) {
+        $pos_last = math_detect_opening($string, $pos, $result);
+      } else {
+        $pos_last = math_detect_closing($string, $pos, $result);
+        if (!is_null($result[4])) {
+          array_push($positions, $result);
+          $result = null;
+        }
+      }
+    }
+  }
+  unset($match);
+  if (!is_null($result)) {
+    $numbers = "0";
+    for ($i = 2; $i < strlen($string); $i++) {
+      if ($i % 10 == 0) {
+        $numbers = $numbers . $i++;
+      } else {
+        $numbers = $numbers . " ";
+      }
+    }
+    $string_caret = '';
+    foreach ($positions as $x) {
+      $pos_start = $x[0];
+      $pos_end = $x[2];
+      $delim_start = $x[1];
+      $delim_end = $x[3];
+      $delim_len = mb_strlen($delim_start);
+      $string_caret = $string_caret . str_repeat(' ', $pos_start - mb_strlen($string_caret)) . '^' . str_repeat('.', $pos_end - $pos_start - 2 * $delim_len) . '^';
+    }
+    unset($x);
+    $pos_start = $result[0];
+    $delim_start = $result[1];
+    $delim_end = $result[3];
+    $string_caret = $string_caret . str_repeat(' ', $pos_start - mb_strlen($string_caret)) . '^---> ?';
+    throw new Exception("Cannot find closing delimiters '$delim_end' for opening delimiters '$delim_start' at position $pos_start:\n$numbers\n$string\n$string_caret\n");
+  }
+  return $positions;
+}
+
+/** Replace math environments by placeholders.
+ *
+ * @param[in]  string  $string     The BibTeX string.
+ * @param[out] string  $token      Placeholder text.
+ * @param[in]  array   $positions  Location of math environments.
+ * @return string  The protected string.
+ */
+function protect_math($string, &$token, $positions) {
+  $token = "abcdefghijk";
+  while (strpos($string, $token) !== false) {
+    $token = substr(md5(strval(mt_rand())), 0, 16);
+  }
+  for ($i = count($positions) - 1; $i >= 0; $i--) {
+    $pos_start = $positions[$i][0];
+    $pos_end = $positions[$i][2];
+    $string = substr($string, 0, $pos_start) . "MATH" . $token . "INDEX" . $i . "END" . substr($string, $pos_end);
+  }
+  return $string;
+}
+
+/** Replace placeholders by the original math environments.
+ *
+ * @param[in]  string  $string     The BibTeX string.
+ * @param[in]  string  $token      Placeholder text.
+ * @param[in]  array   $positions  Location of math environments.
+ * @return string  The deprotected string.
+ */
+function deprotect_math($string, $token, $positions) {
+  for ($i = 0; $i < count($positions); $i++) {
+    $string = str_replace(
+      "MATH" . $token . "INDEX" . $i . "END",
+      $positions[$i][1] . $positions[$i][4] . $positions[$i][3],
+      $string);
+  }
+  return $string;
+}
+
+/**
+ * Strip unescaped curly braces.
+ *
+ * @param  string  $string  The LaTeX string.
+ * @return string  The stripped string.
+ */
+function strip_curly_braces($string) {
+  $string = preg_replace('/(\\\\[a-zA-Z]+)\\{/', '$1 ', $string);
+  $string = preg_replace('/(?<=[^\\\\]|^)\\{/', '', $string);
+  $string = preg_replace('/(?<=[^\\\\]|^)\\}/', '', $string);
+  return $string;
+}
+
 /**
  * Substitute LaTeX escape sequences and macros by equivalent HTML.
  *
@@ -426,8 +595,20 @@ function convert_latex_string($value, $modes) {
   if ($modes & ConversionModes::Newlines) {
     $value = str_replace("\\\\", "\n", $value);
   }
+  $token = null;
+  $math_environments = [];
+  if (preg_match('/\\$|\\\\[\\[\\(]|\\\\ensuremath\\{/', $value) === 1) {
+    $math_environments = math_extractor($value);
+    $value = protect_math($value, $token, $math_environments);
+  }
   if ($modes & ConversionModes::Diacritics) {
     $value = diacritics2utf8($value);
+  }
+  if ($modes & ConversionModes::StripCurlyBraces) {
+    $value = strip_curly_braces($value);
+  }
+  if (!is_null($token)) {
+    $value = deprotect_math($value, $token, $math_environments);
   }
   return $value;
 }

@@ -113,6 +113,36 @@ check_conversion(
   "diacritics2utf8"
 );
 
+echo "Testing strip_curly_braces()\n";
+
+function test_strip_curly_braces($string) {
+  return convert_latex_string($string, ConversionModes::Newlines | ConversionModes::StripCurlyBraces);
+}
+
+check_conversion(
+  '\\emph{abc} {\\bfseries \\{text}',
+  '\\emph abc \\bfseries \\{text',
+  'strip_curly_braces'
+);
+
+check_conversion(
+  '\\emph{abc} {\\bfseries \\{text}',
+  '\\emph abc \\bfseries \\{text',
+  'test_strip_curly_braces'
+);
+
+check_conversion(
+  '\\emph{abc} $\\mathcal{A}$ \\({}\\)',
+  '\\emph abc $\\mathcal A$ \\(\\)',
+  'strip_curly_braces'
+);
+
+check_conversion(
+  '\\emph{abc} $\\mathcal{A}$ \\({}\\)',
+  '\\emph abc $\\mathcal{A}$ \\({}\\)',
+  'test_strip_curly_braces'
+);
+
 echo "The testsuite was successful.\n";
 exit(0);
 ?>

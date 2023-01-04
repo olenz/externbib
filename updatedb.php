@@ -69,7 +69,7 @@ $bibfiles = $argv;
 
 $bibtex = new Structures_BibTex();
 $bibtex->setOption("extractAuthors", false);
-$bibtex->setOption("removeCurlyBraces", true);
+$bibtex->setOption("removeCurlyBraces", false);
 $bibtex->setOption("unwrap", true);
 $bibtex->setOption("storeFullEntries", true);
 
@@ -86,7 +86,7 @@ if (is_bool($db)) {
   exit(1);
 }
 
-$modes = ConversionModes::Newlines | ConversionModes::Diacritics;
+$modes = ConversionModes::Newlines | ConversionModes::Diacritics | ConversionModes::StripCurlyBraces;
 foreach ($bibfiles as $bibfile) {
   populate_db($db, $bibfile, $bibtex, $modes);
 }
