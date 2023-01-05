@@ -1,6 +1,7 @@
 <?php
 /**
- * Unit tests for utility functions that process escape sequences.
+ * Unit tests for utility functions that process escape sequences,
+ * LaTeX macros.
  *
  * @package    ExternBib
  * @author     Jean-Noël Grad
@@ -111,6 +112,49 @@ check_conversion(
   "{\\aa} {\\AA} {\\ae} {\\AE} {\\oe} {\\OE} {\\dh} {\\DH} {\\dj} {\\DJ} {\\ij} {\\IJ} {\\ng} {\\NG} {\\ss} {\\SS} {\\th} {\\TH} {\\i} {\\l} {\\L} {\\o} {\\O} {\\S} {\\P} --- -- \\- \\, \\% \\$ \\_ \\# ~ \\&",
   "å Å æ Æ œ Œ ð Ð đ Đ &ijlig; &IJlig; ŋ Ŋ ß ẞ Þ þ ı ł Ł ø Ø § ¶ &mdash; &ndash;    % &#36; _ #   &amp;",
   "diacritics2utf8"
+);
+
+echo "Testing latex2html()\n";
+
+check_conversion(
+  "\\textsuperscript{1\\}} \\textsuperscript{1 \\^a 2} \\textsubscript{1\\}} \\textsubscript{1 \\^a 2}",
+  "\\textsuperscript{1\\}} \\textsuperscript{1 \\^a 2} \\textsubscript{1\\}} \\textsubscript{1 \\^a 2}",
+  "latex2html"
+);
+check_conversion(
+  "\\textsuperscript{1 $2$ 3} \\textsubscript{1 $2$ 3}",
+  "<sup>1 $2$ 3</sup> <sub>1 $2$ 3</sub>",
+  "latex2html"
+);
+check_conversion(
+  "\\textdegree \\textperiodcentered \\textminus \\textgreater \\textless",
+  "&deg; &dot; &minus; &gt; &lt;",
+  "latex2html"
+);
+check_conversion(
+  "\\textbackslash \\textdollar \\textbullet \\textendash \\textemdash \\textbraceleft \\textbraceright \\textparagraph \\textquestiondown \\textexclamdown \\textasciicircum \\textasciitilde \\textregistered \\texttrademark \\copyright \\pounds \\textbar \\dag \\ddag \\textdagger \\textdaggerdbl \\textalpha \\textBeta",
+  "&#92; &#36; &#149; &ndash; &mdash; &#123; &#125; &para; &iquest; &iexcl; &#94; &#126; &reg; &trade; &copy; &pound; &vert; &dagger; &Dagger; &dagger; &Dagger; &alpha; &Beta;",
+  "latex2html"
+);
+check_conversion(
+  "\\textquotesingle \\textquotedbl \\textquoteleft \\textquoteright \\textquotedblleft \\textquotedblright \\guillemetleft \\guillemetright \\guilsinglleft \\guilsinglright \\quotesinglbase \\quotedblbase",
+  "&#39; &quot; &lsquo; &rsquo; &ldquo; &rdquo; &laquo; &raquo; &lsaquo; &rsaquo; &sbquo; &bdquo;",
+  "latex2html"
+);
+check_conversion(
+  "\\textsuperscript{B2\\textsuperscript{3}} \\textsubscript{B2\\textsubscript{3}} \\textsubscript{B2\\textsuperscript{3}}",
+  "<sup>B2<sup>3</sup></sup> <sub>B2<sub>3</sub></sub> <sub>B2<sup>3</sup></sub>",
+  "latex2html"
+);
+check_conversion(
+  "\\underline{A} \\textbf{B} \\textit{C} \\emph{D} {\\bf B} {\\bfseries B} {\\it C} {\\itshape C}",
+  "<u>A</u> <b>B</b> <i>C</i> <em>D</em> <b>B</b> <b>B</b> <i>C</i> <i>C</i>",
+  "latex2html"
+);
+check_conversion(
+  "\\underline{A\\textbf{B\\textit{C\\underline{A\\textbf{B\\textit{}}}}}}",
+  "<u>A<b>B<i>C<u>A<b>B<i></i></b></u></i></b></u>",
+  "latex2html"
 );
 
 echo "Testing strip_curly_braces()\n";

@@ -1,6 +1,6 @@
 <?php
 /**
- * Utility functions that process escape sequences.
+ * Utility functions that process escape sequences and LaTeX macros.
  *
  * @package    ExternBib
  * @author     Olaf Lenz
@@ -15,6 +15,7 @@ class ConversionModes {
     const Newlines         = 0b00000001; ///< Replace double backslashes by a newline (strongly recommended)
     const Diacritics       = 0b00000010; ///< Remove diacritic escape sequences (see @ref diacritics2utf8)
     const StripCurlyBraces = 0b00000100; ///< Strip all remaining unescaped curly braces (see @ref strip_curly_braces)
+    const LaTeXMacros      = 0b00001000; ///< Replace LaTeX macros (see @ref latex2html)
 }
 
 /** Mapping of LaTeX diacritics escape sequences to UTF-8 symbols. */
@@ -380,6 +381,48 @@ $bibtex2utf8_array = array(
   '~' => ' ',
 );
 
+/** Mapping of LaTeX special symbols to HTML symbols. */
+$special2utf8_array = array(
+  '\\textdegree' => '&deg;',
+  '\\textendash' => '&ndash;',
+  '\\textemdash' => '&mdash;',
+  '\\textgreater' => '&gt;',
+  '\\textless' => '&lt;',
+  '\\textbackslash' => '&#92;',
+  '\\textdollar' => '&#36;',
+  '\\textbullet' => '&#149;',
+  '\\textquestiondown' => '&iquest;',
+  '\\textexclamdown' => '&iexcl;',
+  '\\textasciitilde' => '&#126;',
+  '\\textasciicircum' => '&#94;',
+  '\\textregistered' => '&reg;',
+  '\\texttrademark' => '&trade;',
+  '\\textbraceleft' => '&#123;',
+  '\\textbraceright' => '&#125;',
+  '\\textperiodcentered' => '&dot;',
+  '\\textparagraph' => '&para;',
+  '\\textminus' => '&minus;',
+  '\\copyright' => '&copy;',
+  '\\pounds' => '&pound;',
+  '\\textbar' => '&vert;',
+  '\\dag' => '&dagger;',
+  '\\ddag' => '&Dagger;',
+  '\\textdagger' => '&dagger;',
+  '\\textdaggerdbl' => '&Dagger;',
+  '\\textquotesingle' => '&#39;',
+  '\\textquotedbl' => '&quot;',
+  '\\textquoteleft' => '&lsquo;',
+  '\\textquoteright' => '&rsquo;',
+  '\\textquotedblleft' => '&ldquo;',
+  '\\textquotedblright' => '&rdquo;',
+  '\\guillemetleft' => '&laquo;',
+  '\\guillemetright' => '&raquo;',
+  '\\guilsinglleft' => '&lsaquo;',
+  '\\guilsinglright' => '&rsaquo;',
+  '\\quotesinglbase' => '&sbquo;',
+  '\\quotedblbase' => '&bdquo;',
+);
+
 $bibtexenc = array_keys($bibtex2utf8_array);
 $utf8enc = array_values($bibtex2utf8_array);
 
@@ -566,6 +609,48 @@ function deprotect_math($string, $token, $positions) {
 }
 
 /**
+ * Convert common LaTeX macros and escape sequences to HTML.
+ *
+ * Note: conversion is done on a "best effort" basis.
+ * It is for example limited to macros that take at most one argument,
+ * and whose argument doesn't contain a macro. Hence, this function should
+ * typically be run last, after diacritics escape sequences and math formula
+ * have already been processed.
+ *
+ * @param  string  $string  The LaTeX string containing macros.
+ * @return string  The HTML version.
+ */
+function latex2html($string) {
+  $greek_pat = '[Aa]lpha|[Bb]eta|[Gg]amma|[Dd]elta|[Ee]psilon|[Zz]eta|[Ee]ta|[Tt]heta|[Ii]ota|[Kk]appa|[Ll]ambda|[Mm]u|[Nn]u|[Xx]i|[Oo]micron|[Pp]i|[Rr]ho|[Ss]igma|[Tt]au|[Uu]psilon|[Pp]hi|[Cc]hi|[Pp]si|[Oo]mega';
+  global $special2utf8_array;
+  // special symbols
+  foreach ($special2utf8_array as $macro => $substitute) {
+    $string = preg_replace('/'.preg_quote($macro).'(?![a-zA-Z])/', $substitute, $string);
+  }
+  // Greek symbols
+  $string = preg_replace('/\\\\text('.$greek_pat.')(?![a-zA-Z])/', '&$1;', $string);
+  // superscripts and subscripts
+  if (preg_match('/\\\\(?:textsuperscript|textsubscript)[^a-zA-Z]/', $string) === 1) {
+    for ($iteration = 0; $iteration < 3; $iteration++) {
+      $string = preg_replace('/\\\\textsuperscript\\{([^\\{\\}\\\\]+)\\}/', '<sup>$1</sup>', $string);
+      $string = preg_replace('/\\\\textsubscript\\{([^\\{\\}\\\\]+)\\}/',   '<sub>$1</sub>', $string);
+    }
+  }
+  // text formatting
+  if (preg_match('/\\\\(?:emph|textit|textbf|it(?:shape)?|bf(?:series)?|underline)[^a-zA-Z]/', $string) === 1) {
+    for ($iteration = 0; $iteration < 3; $iteration++) {
+      $string = preg_replace('/\\\\emph\\{([^\\{\}\\\\]*)\\}/', '<em>$1</em>', $string);
+      $string = preg_replace('/\\\\textit\\{([^\\{\}\\\\]*)\\}/', '<i>$1</i>', $string);
+      $string = preg_replace('/\\\\textbf\\{([^\\{\}\\\\]*)\\}/', '<b>$1</b>', $string);
+      $string = preg_replace('/\\\\underline\\{([^\\{\}\\\\]*)\\}/', '<u>$1</u>', $string);
+      $string = preg_replace('/\\{\\\\it(?:shape)? ([^\\{\}\\\\]*)\\}/', '<i>$1</i>', $string);
+      $string = preg_replace('/\\{\\\\bf(?:series)? ([^\\{\}\\\\]*)\\}/', '<b>$1</b>', $string);
+    }
+  }
+  return $string;
+}
+
+/**
  * Strip unescaped curly braces.
  *
  * @param  string  $string  The LaTeX string.
@@ -603,6 +688,9 @@ function convert_latex_string($value, $modes) {
   }
   if ($modes & ConversionModes::Diacritics) {
     $value = diacritics2utf8($value);
+  }
+  if ($modes & ConversionModes::LaTeXMacros) {
+    $value = latex2html($value);
   }
   if ($modes & ConversionModes::StripCurlyBraces) {
     $value = strip_curly_braces($value);
