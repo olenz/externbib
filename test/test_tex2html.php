@@ -1,7 +1,7 @@
 <?php
 /**
  * Unit tests for utility functions that process escape sequences,
- * LaTeX macros.
+ * LaTeX macros and mathematical formula.
  *
  * @package    ExternBib
  * @author     Jean-Noël Grad
@@ -155,6 +155,125 @@ check_conversion(
   "\\underline{A\\textbf{B\\textit{C\\underline{A\\textbf{B\\textit{}}}}}}",
   "<u>A<b>B<i>C<u>A<b>B<i></i></b></u></i></b></u>",
   "latex2html"
+);
+
+echo "Testing math2html()\n";
+
+function test_math2html($string) {
+  return convert_latex_string($string, ConversionModes::Newlines | ConversionModes::MathSimple);
+}
+
+check_conversion(
+  "$\\varphi$ $\\varepsilon$ $\\phi$ $\\epsilon$ $\\upAlpha$ $\\beta$",
+  "<i>&phi;</i> <i>&epsilon;</i> <i>&varphi;</i> <i>&varepsilon;</i> <span>&Alpha;</span> <i>&beta;</i>",
+  "test_math2html"
+);
+check_conversion(
+  "\\ensuremath{\\varphi} \\ensuremath{\\varepsilon} \\ensuremath{\\phi} \\ensuremath{\\epsilon} \\ensuremath{\\upAlpha} \\ensuremath{\\beta}",
+  "<i>&phi;</i> <i>&epsilon;</i> <i>&varphi;</i> <i>&varepsilon;</i> <span>&Alpha;</span> <i>&beta;</i>",
+  "test_math2html"
+);
+check_conversion(
+  "\\(\\varphi\\) \\(\\varepsilon\\) \\(\\phi\\) \\(\\epsilon\\) \\(\\upAlpha\\) \\(\\beta\\)",
+  "<i>&phi;</i> <i>&epsilon;</i> <i>&varphi;</i> <i>&varepsilon;</i> <span>&Alpha;</span> <i>&beta;</i>",
+  "test_math2html"
+);
+check_conversion(
+  "$<$ $\\less$ $>$ $\\greater$ $\\leq$ $\\geq$ $\\infty$ $\\equiv$ $\\mathplus$ $\\pm$ $\\star$ $^\\star$",
+  "<span>&lt;</span> <span>&lt;</span> <span>&gt;</span> <span>&gt;</span> <span>&leq;</span> <span>&geq;</span> <span>&infin;</span> <span>&equiv;</span> <span>+</span> <span>&plusmn;</span> <span>&#x22C6;</span> <span><sup>&#x22C6;</sup></span>",
+  "test_math2html"
+);
+check_conversion(
+  "\\(+1.2 - ax, 1+2;: b\\)",
+  "<span>+1.2 &minus; <i>ax</i>, 1+2;: <i>b</i></span>",
+  "test_math2html"
+);
+check_conversion(
+  "\$100^\\circ\$C $+1.0^{\\circ}\$C \$-1{}^{\\circ}\$C \${}^{\\circ}\$ \$^{\\circ}\$",
+  "<span>100&deg;</span>C <span>+1.0&deg;</span>C <span>&minus;1&deg;</span>C <span>&deg;</span> <span>&deg;</span>",
+  "test_math2html"
+);
+check_conversion(
+  "Li\$^{+}\$ Mg\${}^{2+}\$ CO\$_{2}\$ CO\$_2\$ [Cu(H\$_2\$O)\\({}_{6}\\)]\\ensuremath{^{2+}}",
+  "Li<span><sup>+</sup></span> Mg<span><sup>2+</sup></span> CO<span><sub>2</sub></span> CO<span><sub>2</sub></span> [Cu(H<span><sub>2</sub></span>O)<span><sub>6</sub></span>]<span><sup>2+</sup></span>",
+  "test_math2html"
+);
+check_conversion(
+  "\$H^{+}\$ \$A^{-}\$ \$H^+\$ \$A^-\$",
+  "<span><i>H</i><sup>+</sup></span> <span><i>A</i><sup>&minus;</sup></span> <span><i>H</i><sup>+</sup></span> <span><i>A</i><sup>&minus;</sup></span>",
+  "test_math2html"
+);
+check_conversion(
+  "\${h}^{+}\$ \${a}^{-}\$ \${h}^+\$ \${a}^-\$",
+  "<span><i>h</i><sup>+</sup></span> <span><i>a</i><sup>&minus;</sup></span> <span><i>h</i><sup>+</sup></span> <span><i>a</i><sup>&minus;</sup></span>",
+  "test_math2html"
+);
+check_conversion(
+  "L\${}_0\$\$C^{-0.4}\$\\({C}_{1-x}\\)O\$_{3-h+2.5 - 0.1X}\$",
+  "L<span><sub>0</sub></span><span><i>C</i><sup>&minus;0.4</sup></span><span><i>C</i><sub>1&minus;<i>x</i></sub></span>O<span><sub>3&minus;<i>h</i>+2.5 &minus; 0.1<i>X</i></sub></span>",
+  "test_math2html"
+);
+check_conversion(
+  "\$\\mathcal A\$ \$\\mathcal{a}\$ \$\\mathfrak B\$ \$\\mathfrak{b}\$ \$\\mathbb C\$ \$\\mathbb{c}\$ \$\\mathscr D\$ \$\\mathscr{d}\$",
+  "<span>𝓐</span> <span>𝓪</span> <span>&Bfr;</span> <span>&bfr;</span> <span>&Copf;</span> <span>&copf;</span> <span>&Dscr;</span> <span>&dscr;</span>",
+  "test_math2html"
+);
+check_conversion(
+  "\$O(N^2)\$ \$O(n)\$ \$O(1)\$",
+  "<span><i>O</i>(<i>N</i><sup>2</sup>)</span> <span><i>O</i>(<i>n</i>)</span> <span><i>O</i>(1)</span>",
+  "test_math2html"
+);
+check_conversion(
+  "\$\\mathcal O (N^12)\$ \$\\mathcal O (n)\$ \$\\mathcal O (1)\$",
+  "<span>𝓞(<i>N</i><sup>12</sup>)</span> <span>𝓞(<i>n</i>)</span> <span>𝓞(1)</span>",
+  "test_math2html"
+);
+check_conversion(
+  "4-\$n\$-alkyl-(\$N\$,\\(N\\)]-\$2\$,\$n\$-iodo",
+  "4-<span><i>n</i></span>-alkyl-(<span><i>N</i></span>,<span><i>N</i></span>]-<span>2</span>,<span><i>n</i></span>-iodo",
+  "test_math2html"
+);
+check_conversion(
+  '$1\'$ $2\'\'$ $3\'\'\'$ ${1}^\\prime$ ${b}^{\\prime\\prime}$',
+  '<span>1&prime;</span> <span>2&Prime;</span> $3\'\'\'$ <span>1&prime;</span> <span><i>b</i>&Prime;</span>',
+  "test_math2html"
+);
+check_conversion(
+  '1$\'$ 2${}\'\'$ 1$^\\prime$ 2${}^{\\prime\\prime}$',
+  '1<span>&prime;</span> 2<span>&Prime;</span> 1<span>&prime;</span> 2<span>&Prime;</span>',
+  "test_math2html"
+);
+check_conversion(
+  '\\emph{1} $n$$v$ \\$$1$ \\(1$ - 1\\) \\[5$\\] $$5$\(6\)$$',
+  '\\emph{1} <span><i>n</i></span><span><i>v</i></span> \\$<span>1</span> \\(1$ - 1\\) \\[5$\\] $$5$\\(6\\)$$',
+  "test_math2html"
+);
+
+echo "Testing math2mathjax()\n";
+
+function test_math2mathjax($string) {
+  return convert_latex_string($string, ConversionModes::Newlines | ConversionModes::MathJax);
+}
+
+check_conversion(
+  '$n$ $$v$$',
+  '<span class="math">\\(n\\)</span> <div class="math">\\[v\\]</div>',
+  "test_math2mathjax"
+);
+check_conversion(
+  '\\(n\\) \\[v\\]',
+  '<span class="math">\\(n\\)</span> <div class="math">\\[v\\]</div>',
+  "test_math2mathjax"
+);
+check_conversion(
+  '\\ensuremath{\\{{A\\}}}',
+  '<span class="math">\\(\\{{A\\}}\\)</span>',
+  "test_math2mathjax"
+);
+check_conversion(
+  '\\emph{1} $n$$v$ \\$$1$ \\(1$ - 1\\) \\[5$\\] $$5$\(6\)$$',
+  '\\emph{1} <span class="math">\\(n\\)</span><span class="math">\\(v\\)</span> \\$<span class="math">\\(1\\)</span> <span class="math">\\(1$ - 1\\)</span> <div class="math">\\[5$\\]</div> <div class="math">\\[5$\\(6\\)\\]</div>',
+  "test_math2mathjax"
 );
 
 echo "Testing strip_curly_braces()\n";

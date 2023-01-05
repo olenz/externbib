@@ -1,6 +1,6 @@
 <?php
 /**
- * Utility functions that process escape sequences and LaTeX macros.
+ * Utility functions that process escape sequences, LaTeX macros and math.
  *
  * @package    ExternBib
  * @author     Olaf Lenz
@@ -16,6 +16,8 @@ class ConversionModes {
     const Diacritics       = 0b00000010; ///< Remove diacritic escape sequences (see @ref diacritics2utf8)
     const StripCurlyBraces = 0b00000100; ///< Strip all remaining unescaped curly braces (see @ref strip_curly_braces)
     const LaTeXMacros      = 0b00001000; ///< Replace LaTeX macros (see @ref latex2html)
+    const MathSimple       = 0b00010000; ///< Replace simple math environments by HTML (see @ref math2html)
+    const MathJax          = 0b00100000; ///< Replace all math environments by MathJax (see @ref math2mathjax)
 }
 
 /** Mapping of LaTeX diacritics escape sequences to UTF-8 symbols. */
@@ -381,6 +383,20 @@ $bibtex2utf8_array = array(
   '~' => ' ',
 );
 
+/** Mapping of math escape sequences to UTF-8 symbols. */
+$mathcal2utf8_array = array(
+  'A' => '𝓐', 'B' => '𝓑', 'C' => '𝓒', 'D' => '𝓓', 'E' => '𝓔', 'F' => '𝓕',
+  'G' => '𝓖', 'H' => '𝓗', 'I' => '𝓘', 'J' => '𝓙', 'K' => '𝓚', 'L' => '𝓛',
+  'M' => '𝓜', 'N' => '𝓝', 'O' => '𝓞', 'P' => '𝓟', 'Q' => '𝓠', 'R' => '𝓡',
+  'S' => '𝓢', 'T' => '𝓣', 'U' => '𝓤', 'V' => '𝓥', 'W' => '𝓦', 'X' => '𝓧',
+  'Y' => '𝓨', 'Z' => '𝓩',
+  'a' => '𝓪', 'b' => '𝓫', 'c' => '𝓬', 'd' => '𝓭', 'e' => '𝓮', 'f' => '𝓯',
+  'g' => '𝓰', 'h' => '𝓱', 'i' => '𝓲', 'j' => '𝓳', 'k' => '𝓴', 'l' => '𝓵',
+  'm' => '𝓶', 'n' => '𝓷', 'o' => '𝓸', 'p' => '𝓹', 'q' => '𝓺', 'r' => '𝓻',
+  's' => '𝓼', 't' => '𝓽', 'u' => '𝓾', 'v' => '𝓿', 'w' => '𝔀', 'x' => '𝔁',
+  'y' => '𝔂', 'z' => '𝔃',
+);
+
 /** Mapping of LaTeX special symbols to HTML symbols. */
 $special2utf8_array = array(
   '\\textdegree' => '&deg;',
@@ -609,6 +625,133 @@ function deprotect_math($string, $token, $positions) {
 }
 
 /**
+ * Convert simple LaTeX math environments to HTML.
+ *
+ * Note: conversion is done on a "best effort" basis and is limited
+ * to math environment with at most one token.
+ *
+ * @param[in]      string  $string     The LaTeX string containing math formula.
+ * @param[in,out]  array   $positions  Location of math environments.
+ * @return void
+ */
+function math2html($string, &$positions) {
+  $greek_pat = '[Aa]lpha|[Bb]eta|[Gg]amma|[Dd]elta|[Ee]psilon|[Zz]eta|[Ee]ta|[Tt]heta|[Ii]ota|[Kk]appa|[Ll]ambda|[Mm]u|[Nn]u|[Xx]i|[Oo]micron|[Pp]i|[Rr]ho|[Ss]igma|[Tt]au|[Uu]psilon|[Pp]hi|[Cc]hi|[Pp]si|[Oo]mega';
+  $beg = '/^\\s*';
+  $end = '\\s*$/';
+  $slant_symbols = function($symbols) {
+    return preg_replace('/([a-zA-Z]+)/', '<i>$1</i>', $symbols);
+  };
+  foreach ($positions as &$result) {
+    $string = $result[4];
+    // Roman symbols, mathematical symbols and integers
+    $string = preg_replace($beg.'<'.$end, '<span>&lt;</span>', $string);
+    $string = preg_replace($beg.'>'.$end, '<span>&gt;</span>', $string);
+    $string = preg_replace($beg.'\\\\equiv'.$end, '<span>&equiv;</span>', $string);
+    $string = preg_replace($beg.'\\\\mathplus'.$end, '<span>+</span>', $string);
+    $string = preg_replace($beg.'\\\\pm'.$end, '<span>&plusmn;</span>', $string);
+    $string = preg_replace_callback(
+      $beg.'\\{?([0-9a-zA-Z\\+\\-\\.,;: ]+)\\}?'.$end,
+      function ($matches) use ($slant_symbols) {
+        return '<span>' . $slant_symbols($matches[1]) . '</span>';
+      },
+      $string
+    );
+    // Greek symbols with alternative versions (reversed in HTML)
+    $string = preg_replace($beg.'\\\\var(phi|epsilon)'.$end, '<i>&$1;</i>', $string);
+    $string = preg_replace($beg.'\\\\(phi|epsilon)'.$end, '<i>&var$1;</i>', $string);
+    // Greek symbols with alternative and upright versions
+    $string = preg_replace($beg.'\\\\((?:var)?)('.$greek_pat.')'.$end, '<i>&$1$2;</i>', $string);
+    $string = preg_replace($beg.'\\\\up('.$greek_pat.')'.$end, '<span>&$1;</span>', $string);
+    // miscellaneous symbols
+    $string = preg_replace($beg.'\\\\less'.$end, '<span>&lt;</span>', $string);
+    $string = preg_replace($beg.'\\\\greater'.$end, '<span>&gt;</span>', $string);
+    $string = preg_replace($beg.'\\\\leq'.$end, '<span>&leq;</span>', $string);
+    $string = preg_replace($beg.'\\\\geq'.$end, '<span>&geq;</span>', $string);
+    $string = preg_replace($beg.'\\\\infty'.$end, '<span>&infin;</span>', $string);
+    $string = preg_replace($beg.'\\\\star'.$end, '<span>&#x22C6;</span>', $string);
+    $string = preg_replace($beg.'(?:\\{\\})?\\^\\\\star'.$end, '<span><sup>&#x22C6;</sup></span>', $string);
+    $string = preg_replace($beg.'([\\+\\-][0-9\\.]+|[0-9]*)(?:\\{\\})?\\^\\{?\\\\circ\\}?'.$end, '<span>$1&deg;</span>', $string);
+    // prime and double prime symbols
+    $string = preg_replace_callback(
+      $beg.'\\{?([0-9a-zA-Z]*)\\}?(?:(\'{1,2})|\\^\\{?((?:\\\\prime){1,2})\\}?)'.$end,
+      function ($matches) use ($slant_symbols) {
+        return '<span>'
+               . $slant_symbols($matches[1])
+               . (($matches[2] === "'" or count($matches) >= 4 and $matches[3] === "\\prime") ? '&prime;' : '&Prime;')
+               . '</span>';
+      },
+      $string
+    );
+    // subscripts and superscripts
+    $string = preg_replace_callback(
+      $beg.'\\{?([a-zA-Z]?)\\}?([_^])\\{?([0-9a-zA-Z\\+\\-\\.,;: ]+)\\}?'.$end,
+      function ($matches) use ($slant_symbols) {
+        return '<span>'
+               . $slant_symbols($matches[1])
+               . ($matches[2] == '_' ? '<sub>' : '<sup>')
+               . $slant_symbols($matches[3])
+               . ($matches[2] == '_' ? '</sub>' : '</sup>')
+               . '</span>';
+      },
+      $string
+    );
+    // calligraphy
+    $string = preg_replace($beg.'\\\\mathfrak(?: +|\\{)([a-zA-Z])\\}?'.$end, '<span>&$1fr;</span>', $string);
+    $string = preg_replace($beg.'\\\\mathbb(?: +|\\{)([a-zA-Z])\\}?'.$end, '<span>&$1opf;</span>', $string);
+    $string = preg_replace($beg.'\\\\mathscr(?: +|\\{)([a-zA-Z])\\}?'.$end, '<span>&$1scr;</span>', $string);
+    $string = preg_replace_callback(
+      $beg.'\\\\mathcal(?: +|\\{)([a-zA-Z])\\}?'.$end,
+      function ($matches) {
+        global $mathcal2utf8_array;
+        return '<span>' . $mathcal2utf8_array[$matches[1]] . '</span>';
+      },
+      $string
+    );
+    // computer science
+    $string = preg_replace($beg.'\\\\mathcal(?: +O| *\\{O\\}) *\\(([Nn])\\^\\{?([0-9]+)\\}?\\)'.$end, '<span>𝓞(<i>$1</i><sup>$2</sup>)</span>', $string);
+    $string = preg_replace($beg.'\\\\mathcal(?: +O| *\\{O\\}) *\\(([Nn])\\)'.$end, '<span>𝓞(<i>$1</i>)</span>', $string);
+    $string = preg_replace($beg.'\\\\mathcal(?: +O| *\\{O\\}) *\\(([0-9])\\)'.$end, '<span>𝓞($1)</span>', $string);
+    $string = preg_replace($beg.'O *\\(([Nn])\\^\\{?([0-9]+)\\}?\\)'.$end, '<span><i>O</i>(<i>$1</i><sup>$2</sup>)</span>', $string);
+    $string = preg_replace($beg.'O *\\(([Nn])\\)'.$end, '<span><i>O</i>(<i>$1</i>)</span>', $string);
+    $string = preg_replace($beg.'O *\\(([0-9])\\)'.$end, '<span><i>O</i>($1)</span>', $string);
+    // commit new string if substitution was successful
+    if (strcmp($string, $result[4]) !== 0) {
+      // replace hyphens by minus signs
+      $string = str_replace("-", "&minus;", $string);
+      // HTML nodes
+      if ($result[1] == '\\(' or $result[1] == '$' or $result[1] == '\\ensuremath{') {
+        $result[1] = '';
+        $result[3] = '';
+      } elseif ($result[1] == '\\[' or $result[1] == '$$') {
+        $result[1] = '<div>';
+        $result[3] = '</div>';
+      }
+      $result[4] = $string;
+    }
+  }
+  unset($result);
+}
+
+/** Convert math environments to MathJax HTML nodes.
+ *
+ * @param[in]      string  $string     The BibTeX string.
+ * @param[in,out]  array   $positions  Location of math environments.
+ * @return void
+ */
+function math2mathjax($string, &$positions) {
+  foreach ($positions as &$result) {
+    if ($result[1] == '\\(' or $result[1] == '$' or $result[1] == '\\ensuremath{') {
+      $result[1] = '<span class="math">\\(';
+      $result[3] = '\\)</span>';
+    } elseif ($result[1] == '\\[' or $result[1] == '$$') {
+      $result[1] = '<div class="math">\\[';
+      $result[3] = '\\]</div>';
+    }
+  }
+  unset($result);
+}
+
+/**
  * Convert common LaTeX macros and escape sequences to HTML.
  *
  * Note: conversion is done on a "best effort" basis.
@@ -671,6 +814,9 @@ function strip_curly_braces($string) {
  * @return string  The converted string.
  */
 function convert_latex_string($value, $modes) {
+  if ((($modes & ConversionModes::MathJax) != 0) and (($modes & ConversionModes::MathSimple) != 0)) {
+    throw "Cannot convert LaTeX math environments to both HTML and MathJax";
+  }
   if ($modes and (($modes & ConversionModes::Newlines) == 0)) {
     throw "Cannot process LaTeX without first substituting newlines";
   }
@@ -688,6 +834,12 @@ function convert_latex_string($value, $modes) {
   }
   if ($modes & ConversionModes::Diacritics) {
     $value = diacritics2utf8($value);
+  }
+  if ($modes & ConversionModes::MathSimple) {
+    math2html($value, $math_environments);
+  }
+  if ($modes & ConversionModes::MathJax) {
+    math2mathjax($value, $math_environments);
   }
   if ($modes & ConversionModes::LaTeXMacros) {
     $value = latex2html($value);
