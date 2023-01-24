@@ -213,29 +213,37 @@ class Structures_BibTex
     }
 
     /**
-     * Reads a give BibTex File
+     * Reads a given BibTex File
      *
      * @access public
-     * @param string $filename Name of the file
-     * @return mixed true on success PEAR_Error on failure
+     * @param mixed $filename Filepath or file handle.
+     * @return mixed true on success or PEAR_Error on failure
      */
     function loadFile($filename)
     {
-        if (file_exists($filename)) {
-            if (($this->content = @file_get_contents($filename)) === false) {
-                return PEAR::raiseError('Could not open file '.$filename);
-            } else {
+        if (is_string($filename)) {
+            if (file_exists($filename)) {
+                if (($this->content = @file_get_contents($filename)) === false) {
+                    return PEAR::raiseError('Could not open file '.$filename);
+                }
                 $this->_pos    = 0;
                 $this->_oldpos = 0;
                 return true;
             }
-        } else {
             return PEAR::raiseError('Could not find file '.$filename);
+        } elseif (is_resource($filename)) {
+            if (($this->content = @stream_get_contents($filename)) === false) {
+                return PEAR::raiseError('Could not read file handle');
+            }
+            $this->_pos    = 0;
+            $this->_oldpos = 0;
+            return true;
         }
+        return PEAR::raiseError('Could not process input file');
     }
 
     /**
-     * Parses what is stored in content and clears the content if the parsing is successfull.
+     * Parses what is stored in content and clears the content if the parsing is successful.
      *
      * @access public
      * @return boolean true on success and PEAR_Error if there was a problem
@@ -304,8 +312,8 @@ class Structures_BibTex
             }
             $unique = array_unique($cites);
             if (sizeof($cites) != sizeof($unique)) { //Some values have not been unique!
-	      $notuniques = array_unique( array_diff_assoc( $cites, $unique ) );
-	      $this->_generateWarning('WARNING_MULTIPLE_ENTRIES', implode(',',$notuniques));
+                $notuniques = array_unique( array_diff_assoc( $cites, $unique ) );
+                $this->_generateWarning('WARNING_MULTIPLE_ENTRIES', implode(',',$notuniques));
             }
         }
         if ($valid) {
@@ -345,7 +353,7 @@ class Structures_BibTex
         $ret = array();
         if ($this->_options['storeFullEntries']) {
             $ret["fullEntry"] = $entry . "}";
-	}
+        }
         if ('@string' ==  strtolower(substr($entry, 0, 7))) {
             //String are not yet supported!
             if ($this->_options['validate']) {

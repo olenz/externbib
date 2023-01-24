@@ -21,19 +21,30 @@ require_once("bibdb.php");
  * to HTML on a "best effort" basis.
  *
  * @param SQLite3            $db         The SQLite database.
- * @param mixed              $bibfile    The BibTeX file path.
+ * @param mixed              $bibfile    The BibTeX file path or file handle.
  * @param Structures_BibTex  $bibparser  The BibTeX parser.
  * @param int                $modes      LaTeX-to-HTML conversions to apply.
+ * @param bool               $verbose    Whether to print progress to screen.
  * @return void
  */
-function populate_db($db, $bibfile, $bibparser, $modes) {
-  echo "Loading $bibfile...\n";
+function populate_db($db, $bibfile, $bibparser, $modes, $verbose) {
+  $filedesc = "file object";
+  if (is_string($bibfile)) {
+    $filedesc = $bibfile;
+  } elseif (is_resource($bibfile)) {
+    $filedesc = "file handle";
+  }
+  if ($verbose) {
+    echo "Loading $filedesc...\n";
+  }
   $ret = $bibparser->loadFile($bibfile);
   if (PEAR::isError($ret)) {
     die($ret->getMessage());
   }
 
-  echo "Parsing $bibfile...\n";
+  if ($verbose) {
+    echo "Parsing $filedesc...\n";
+  }
   $bibparser->parse();
   if ($bibparser->hasWarning()) {
     foreach ($bibparser->warnings as $warning) {
@@ -41,7 +52,9 @@ function populate_db($db, $bibfile, $bibparser, $modes) {
     }
   }
 
-  echo "Found " . $bibparser->amount() . " entries.\n";
+  if ($verbose) {
+    echo "Found " . $bibparser->amount() . " entries.\n";
+  }
 
   foreach ($bibparser->data as $entry) {
     // create associative array

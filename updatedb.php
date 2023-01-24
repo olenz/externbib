@@ -88,7 +88,7 @@ if (is_bool($db)) {
 
 $modes = ConversionModes::Newlines | ConversionModes::Diacritics | ConversionModes::LaTeXMacros | ConversionModes::MathSimple | ConversionModes::StripCurlyBraces;
 foreach ($bibfiles as $bibfile) {
-  populate_db($db, $bibfile, $bibtex, $modes);
+  populate_db($db, $bibfile, $bibtex, $modes, true);
 }
 
 bibdb_close($db);
