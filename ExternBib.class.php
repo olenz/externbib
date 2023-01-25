@@ -565,6 +565,11 @@ class ExternBib {
        }
     }
 
+    // rule to strip diacritic marks
+    $to_ascii = Transliterator::createFromRules(
+        ':: Any-Latin; :: Latin-ASCII; :: NFD; :: [:Nonspacing Mark:] Remove; :: NFC;',
+        Transliterator::FORWARD);
+
     // now query the data
     $selection = array_keys($this->data);
     if (is_array($selection) && count($selection) > 0)
@@ -581,6 +586,9 @@ class ExternBib {
 	     if (array_key_exists($key, $this->data[$entry])) {
 	       $value = $this->data[$entry][$key];
 	       if (mb_strpos(mb_strtolower($value), mb_strtolower($searchvalue)) !== FALSE)
+	         $newselection[] = $entry;
+	       elseif (mb_strpos(mb_strtolower($to_ascii->transliterate($value)),
+	                         mb_strtolower($to_ascii->transliterate($searchvalue))) !== FALSE)
 	         $newselection[] = $entry;
 	     } 
 	   }
