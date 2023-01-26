@@ -79,15 +79,13 @@ class ExternBib {
     $parser->mOutput->updateCacheExpiry( 0 );
 
     // parse $input and split it into entries
-    $input = trim($input);
+    $input = trim(trim($input), ',');
     $entries = preg_split("/[\s,]+/", $input);
 
     // start writing into the output buffer
     ob_start();
     
-    echo "<ul class=\"plainlinks\">\n";
     $this->format_entries($entries, $argv);
-    echo "</ul>\n";
   
     // get everything from the output buffer
     $output = ob_get_contents();
