@@ -7,33 +7,34 @@
  * @author     Olaf Lenz
  * @author     David Schwoerer
  * @author     Michael Kuron
- * @copyright  2011-2013,2016,2021 The Authors
+ * @author     Jean-Noël Grad
+ * @copyright  2011-2013,2016,2021-2022 The Authors
  * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
  * @link       https://github.com/olenz/externbib
  */
 if (!defined('MEDIAWIKI')) die();
 require_once("bibdb.php");
+require_once("BibFormatter.class.php");
 
 
 class ExternBib {
   // the database
   var $dbs = array();
-  // the currently handled entry
-  var $current_entry;
+
+  // the BibTeX forammter
+  var $bibformatter = null;
 
   // parameters
   var $filedirs;
   var $filebaseurls;
-  var $doibaseurl;
-  var $eprintbaseurl;
   var $default_format;
 
   function __construct($dbfiles, 
-		     $filedirs,
-		     $filebaseurls,
-		     $doibaseurl,
-		     $eprintbaseurl,
-		     $default_format) {
+                       $filedirs,
+                       $filebaseurls,
+                       $doibaseurl,
+                       $eprintbaseurl,
+                       $default_format) {
     if (!is_file(reset($dbfiles)))
       error_log("ERROR: $dbfiles[0] does not exist!");
     
@@ -41,7 +42,7 @@ class ExternBib {
       // bibdb_open returns a sqlite db object on success, a false else
       $db_local = bibdb_open($dbfile, 'rd');
       if (is_bool($db_local)) {
-	error_log("ERROR: Could not open $dbfiles[$name]!");
+        error_log("ERROR: Could not open $dbfiles[$name]!");
       } else {
         $this->dbs[$name] = $db_local;
       }
@@ -57,12 +58,15 @@ class ExternBib {
     else
       $this->filebaseurls = array($filebaseurls);
 
+    $this->filebaseurls = array_map(
+        function ($x) { return rtrim($x, '/'); },
+        $this->filebaseurls);
+
     if (count($this->filedirs) != count($this->filebaseurls))
       error_log('ERROR: Number of elements in $wgExternBibFileDirs does not match number of elements in $wgExternBibFileURLs!');
 
-    $this->doibaseurl = $doibaseurl;
-    $this->eprintbaseurl = $eprintbaseurl;
     $this->default_format = $default_format;
+    $this->bibformatter = new BibFormatter($doibaseurl, $eprintbaseurl);
   }
 
   //////////////////////////////////////////////////
@@ -135,20 +139,6 @@ class ExternBib {
     return $value === true or $value === "true" or $value === "yes" or $value === 1;
   }
 
-  // returns whether the field $key for the current entry is set
-  function issetb($key) {
-    return array_key_exists($key, $this->current_entry);
-  }
-   
-  // if $key is set in the current entry, 
-  // return the entry (formatted with $format)
-  // otherwise return the default
-  function getb($key, $default = "", $format="%s") {
-    if ($this->issetb($key)) 
-    return sprintf($format, $this->current_entry[$key]);
-    else return $default;
-  }
-
   function fullEntryLink($entry, $text) {
     $title = SpecialPage::getTitleFor("ExternBibShowEntry", "$entry");
     $linker = new Linker();
@@ -156,18 +146,21 @@ class ExternBib {
     return $link;
   }
 
-  // returns the human readable filesize
+  /** Format a file size in human-readable form. */
   function hfilesize($file){
     $size = filesize($file);
-    $i=0;
-    $iec = array("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB");
-    while (($size/1024)>1) {
-      $size=$size/1024;
+    $i = 0;
+    $units = array("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB");
+    while ($size >= 1024) {
+      $size /= 1024;
       $i++;
     }
-    $size = ceil($size);
-     
-    return "$size $iec[$i]";
+    if ($size < 10.) {
+      $size = sprintf("%.1f", round($size, 1));
+    } else {
+      $size = ceil($size);
+    }
+    return "$size ${units[$i]}";
   }
 
   // Format $entries
@@ -189,297 +182,113 @@ class ExternBib {
       $argv["filelink"] = $argv["pdflink"];
 
     // set defaults
-    $compact = $this->array_isset("compact", 
-				  $argv, $this->default_format);
-    $abstract = $this->array_isset("abstract", 
-				   $argv, $this->default_format);
-    $filelink = $this->array_isset("filelink", 
-				   $argv, $this->default_format);
-    $meta = $this->array_isset("meta", 
-			       $argv, $this->default_format);
-    $bibtex = $this->array_isset("bibtex", 
-				 $argv, $this->default_format);
-    $fullentrylink = $this->array_isset("fullentrylink", 
-					$argv, $this->default_format);
+    $make_compact = $this->array_isset("compact", $argv, $this->default_format);
+    $show_abstract = $this->array_isset("abstract", $argv, $this->default_format);
+    $show_filelink = $this->array_isset("filelink", $argv, $this->default_format);
+    $show_metadata = $this->array_isset("meta", $argv, $this->default_format);
+    $show_bibtex = $this->array_isset("bibtex", $argv, $this->default_format);
+    $show_fullentrylink = $this->array_isset("fullentrylink", $argv, $this->default_format);
 
-    echo "<ul class=\"plainlinks\">\n";
+    $formatted_entries = [];
 
     foreach ($entries as $entry) {
       // fetch the entry
-      
+
       // use db name if given
-      if(is_array($entry) && array_key_exists("db", $entry))
-      {
-         $data = bibdb_fetch(reset($entry), $this->dbs[$entry["db"]]);
-         $dbname = $entry["db"];
-         
-         if (!$data) {
-	   echo "<li class=\"error\">";
-	   echo wfMessage('externbib-entry-notfound', reset($entry));
-	   echo "</li>\n";
-	   continue;
-         }
-         $entry = reset($entry);
+      if (is_array($entry) && array_key_exists("db", $entry)) {
+        $data = bibdb_fetch(reset($entry), $this->dbs[$entry["db"]]);
+        $dbname = $entry["db"];
+        if (!$data) {
+          $msg = wfMessage('externbib-entry-notfound', reset($entry));
+          array_push($formatted_entries, '<li class="error">' . $msg . '</li>');
+          continue;
+        }
+        $entry = reset($entry);
       } else {
-	// else check in each database if entry exists
-	for (reset($this->dbs); (current($this->dbs) !== false) && !isset($data); next($this->dbs)){
-	  $data = bibdb_fetch($entry, current($this->dbs));
-	}
-            
-         $dbname = key($this->dbs);
-         
-         if (!$data) {
-	   echo "<li class=\"error\">";
-	   echo wfMessage('externbib-entry-notfound', $entry);
-	   echo "</li>\n";
-	   continue;
-         }
+        // else check in each database if entry exists
+        for (reset($this->dbs); (current($this->dbs) !== false) && !isset($data); next($this->dbs)){
+          $data = bibdb_fetch($entry, current($this->dbs));
+        }
+        $dbname = key($this->dbs);
+        if (!$data) {
+          $msg = wfMessage('externbib-entry-notfound', $entry);
+          array_push($formatted_entries, '<li class="error">' . $msg . '</li>');
+          continue;
+        }
       }
-         
+
       reset($this->dbs);
-      
+
       // current entry is used by getb and issetb
-      $this->current_entry = unserialize($data);
+      $current_entry = unserialize($data);
       unset($data);
      
       // check whether the entry is superseded by another one
-      if ($this->issetb("superseded")) {
-	if ($meta) {
-	  $superseded = $this->getb("superseded");
-	  $supersededLink = 
-	    $this->fullEntryLink($superseded, 
-				 wfMessage('externbib-fullentry'));
-
-	  echo "<li class=\"warning\">";
-	  echo wfMessage('externbib-entry-superseded', 
-		     $entry,
-		     $superseded,
-		     $supersededLink
-		     );
-	  echo ".</li>\n";
-	}
-	continue;
-      } 
-
-      echo "<li>\n";
-  
-      // main formatting
-
-      if ($meta) echo "[$entry]<br/>\n";
-    
-      if ($this->getb("author") || $this->getb("entryType") != "book" ) {
-        echo $this->getb("author", "Unknown author") . ". ";
-        if (!$compact) echo "<br/>";
-        echo "\n";
+      if (array_key_exists("superseded", $current_entry)) {
+        if ($show_metadata) {
+          $superseded = $current_entry["superseded"];
+          $supersededLink = $this->fullEntryLink($superseded, wfMessage('externbib-fullentry'));
+          $msg = wfMessage('externbib-entry-superseded',
+                           $entry, $superseded, $supersededLink);
+          array_push($formatted_entries, '<li class="warning">' . $msg . '</li>');
+        }
+        continue;
       }
-  
-      echo "<b>" . $this->getb("title", "Unknown title.", "\"%s\".") . "</b>";
-      if (!$compact) echo "<br/>";
-      echo "\n";
-
-      switch ($this->getb("entryType")) {
-      case "article":
-	echo "<i>" . $this->getb("journal", "Unknown journal") . "</i>\n";
-	echo $this->getb("volume");
-	echo $this->getb("number", "", "(%s)");
-	echo $this->getb("pages", "", "(%s)");
-	echo $this->getb("year", "", ", <b>%s</b>");
-	echo ".\n";
-	break;
-
-      case "book":
-	echo $this->getb("series", "", "<i>%s</i>, ");
-	echo $this->getb("publisher", "Unknown publisher", "%s");
-	echo $this->getb("editor", "", ", %s");
-	echo $this->getb("address", "", ", %s");
-	echo $this->getb("year", "", ", <b>%s</b>"); 
-	echo ". \n";
-	break;
-
-      case "inbook":
-      case "incollection":
-	echo "In ";
-        echo "<i>" . $this->getb("booktitle", "unknown booktitle") . "</i>";
-	if ($this->issetb("series") || $this->issetb("volume")) {
-	  echo ", volume " . $this->getb("volume") . " of ";
-	  echo "<i>" . $this->getb("series", "") . "</i>";
-	}
-	echo $this->getb("chapter", "", ", chapter %s");
-	echo $this->getb("pages", "", ", pages %s");
-	echo ".";
-	echo $this->getb("editor", "", " Editors: %s,\n");
-	if (!$compact) echo "<br/>";
-	echo "\n";
-	echo $this->getb("publisher", "Unknown publisher");
-	echo $this->getb("address", "", ", %s");
-	echo $this->getb("year", "", ", <b>%s</b>");
-	echo ". \n";
-      break;
-
-      case "conference":
-      case "inproceedings":
-	echo "<i>" . $this->getb("booktitle", "unknown booktitle") . "</i>\n";
-      if ($this->issetb("series") || $this->issetb("volume")) {
-	echo ", volume " . $this->getb("volume") . " of ";
-	echo "<i>" . $this->getb("series", "") . "</i>";
-      }
-      echo $this->getb("chapter", "", ", chapter %s");
-      echo $this->getb("pages", "", ", pages %s, ");
-      echo $this->getb("editor", "", "Editors: %s,\n");
-      echo $this->getb("address", "", ", %s");
-      echo $this->getb("year", "", ", <b>%s</b>");
-      echo ".";
-      if (!$compact) echo "<br/>";
-      echo "\n";
-      echo $this->getb("publisher", "Unknown publisher");
-      echo $this->getb("pubaddress", "", ", %s");
-      echo ". \n";
-      break;
-
-      case "mastersthesis":
-	echo $this->getb("type", "<i>Master's thesis</i>");
-	echo $this->getb("school", "", ", %s");
-	echo $this->getb("address", "", ", %s");
-	echo $this->getb("month", "", ", %s");
-	echo $this->getb("year", "", ", <b>%s</b>"); 
-	echo ". \n";
-	break;
-
-      case "bookreview":
-	echo "Book review: ";
-	echo $this->getb("title", "", ", %s");
-	echo "<i>" . $this->getb("journal", "Unknown journal") . "</i>, \n";
-	echo $this->getb("volume");
-	echo $this->getb("number", "", "(%s)");
-	echo $this->getb("pages", "", ", (%s)");
-	echo $this->getb("year", "", ", <b>%s</b>"); 
-	echo ". \n";
-	break;
-
-      case "phdthesis":
-	echo $this->getb("type", "<i>PhD thesis</i>");
-	echo $this->getb("school", "", ", %s");
-	echo $this->getb("address", "", ", %s");
-	echo $this->getb("month", "", ", %s");
-	echo $this->getb("year", "", ", <b>%s</b>"); 
-	echo ". \n";
-	break;
-      
-      case "habilitation":
-	echo "<i>Habilitationsschrift</i> :";
-	echo $this->getb("month", "", ", %s");
-	echo $this->getb("year", "", ", <b>%s</b>");
-	echo ". \n";
-	break;
-
-      case "techreport":
-	echo $this->getb("type", "Technical report", "%s");
-	echo $this->getb("institution", "", ", %s");
-	echo $this->getb("pages", "", ", pages %s");
-	echo $this->getb("editor", "", ", %s, editors");
-	echo $this->getb("publisher", "", ", %s");
-	echo $this->getb("address", "", ", %s");
-	echo $this->getb("year", "", ", <b>%s</b>"); 
-	echo ". \n";
-	break;
-
-      case "manual":
-	echo $this->getb("publisher", "unknown publisher", "%s");
-	echo $this->getb("address", "", ", %s");
-	echo $this->getb("year", "", ", <b>%s</b>");
-	echo ". \n";
-	break;
-
-      case "unpublished":
-      case "misc":
-      default:
-	echo $this->getb("year", "", "<b>%s</b>.\n");
-      break;
-      } //end switch
-
-      // Notes
-      if ($this->issetb("note")) {
-	if (! $compact) echo "<br/>\n";
-	echo $this->getb("note");
-      }
-
-      // Links
-      if (!$compact) echo "<br/>\n";
-
-      // link to full entry
-      if ($fullentrylink)
-	echo $this->fullEntryLink($entry, '[' . 
-				  wfMessage('externbib-fullentry') . 
-				  ']') . "\n";
 
       // link to files
-      if ($filelink) {
-	for ($i=0; $i < count($this->filedirs); $i++) {
-	  $dir = $this->filedirs[$i];
-	  $urlbase = $this->filebaseurls[$i];
-	  
-	  $pdffile = "$dir/$entry.pdf";
-	  if (file_exists($pdffile)) {
-	    echo "<a href=\"$urlbase/$entry.pdf\">[PDF]</a>";
-	    echo " (" . $this->hfilesize($pdffile) . ")\n";
-	  }
-    
-	  $psfile = "$dir/$entry.ps";
-	  if (file_exists($psfile)) {
-	    echo "<a href=\"$urlbase/$entry.ps\">[PS]</a>";
-	    echo " (" . $this->hfilesize($psfile) .")\n";
-	  }
-
-	  $psgzfile = "dir/$entry.ps.gz";
-	  if (file_exists($psgzfile)) {
-	    echo "<a href=\"$urlbase/$entry.ps.gz\">[PS.GZ]</a>";
-	    echo " (" . $this->hfilesize($psgzfile) .")\n";
-	  }
-	}
+      $filelinks = "";
+      if ($show_filelink) {
+        for ($i=0; $i < count($this->filedirs); $i++) {
+          $dir = $this->filedirs[$i];
+          $urlbase = $this->filebaseurls[$i];
+          foreach (array("pdf", "ps", "ps.gz") as $ext) {
+            $filepath = "$dir/$entry.$ext";
+            if (file_exists($filepath)) {
+              $filelinks .= "<a href=\"$urlbase/$entry.$ext\">[" . strtoupper($ext) . "]</a>";
+              $filelinks .= " (" . $this->hfilesize($filepath) . ")\n";
+            }
+          }
+        }
       }
-  
-      echo $this->getb("e-print", "", 
-		       "<a href=\"" . $this->eprintbaseurl . "/%s\">[Preprint]</a>\n");
-      echo $this->getb("doi", "",
-		       "<a href=\"" . $this->doibaseurl . "/%s\">[DOI]</a>\n");
-      echo $this->getb("url", "", "<a href=\"%s\">[URL]</a>\n");
-	
-      // Abstract
-      if ($abstract && $this->issetb("abstract")) {
-	echo "<div style=\"margin:0pt 1em 1em 1em;font-size:75%\">\n";
-	echo $this->getb("abstract");
-	echo "</div>\n";
+
+      // link to full entry
+      $fullentrylink = "";
+      if ($show_fullentrylink) {
+        $fullentrylink = $this->fullEntryLink(
+            $entry, '[' . wfMessage('externbib-fullentry') . ']') . "\n";
       }
 
       // Timestamp
-      if ($meta && 
-	  ($this->issetb('timestamp') || $this->issetb('owner'))) {
-	echo "<div style=\"margin-left:1em;font-size:90%;\">";
-	if ($this->issetb('timestamp') && $this->issetb('owner'))
-	  echo wfMessage('externbib-enteredon', 
-		     $this->getb("owner"), $this->getb("timestamp"), $dbname);
-	elseif ($this->issetb('timestamp'))
-	  echo wfMessage('externbib-enteredon-noowner', 
-		     $this->getb("timestamp"), $dbname);
-	else
-	  echo wfMessage('externbib-enteredon-notimestamp', 
-		     $this->getb("owner"), $dbname);
-
-	echo "</div>\n";
+      $timestamp = "";
+      $entry_name = "";
+      if ($show_metadata) {
+        $entry_name = "[$entry]<br/>\n";
+        if (array_key_exists('timestamp', $current_entry) || array_key_exists('owner', $current_entry)) {
+          $timestamp = "<div style=\"margin-left:1em;font-size:90%;\">";
+          if (array_key_exists('timestamp', $current_entry) && array_key_exists('owner', $current_entry)) {
+            $timestamp .= wfMessage(
+                'externbib-enteredon', $current_entry["owner"], $current_entry["timestamp"], $dbname);
+          } elseif (array_key_exists('timestamp', $current_entry)) {
+            $timestamp .= wfMessage(
+                'externbib-enteredon-noowner', $current_entry["timestamp"], $dbname);
+          } else {
+            $timestamp .= wfMessage(
+                'externbib-enteredon-notimestamp', $current_entry["owner"], $dbname);
+          }
+          $timestamp .= "</div>\n";
+        }
       }
 
-      // BibTeX record
-      if ($bibtex && $this->issetb("fullEntry")) {
-	echo "<pre>\n";
-	echo $this->getb("fullEntry");
-	echo "</pre>\n";
-      }
-    
-      echo "</li>\n";
+      // main formatting
+      $formatted_entry = $this->bibformatter->format(
+          $current_entry, $make_compact, $show_abstract, $show_bibtex,
+          $entry_name, $timestamp, $filelinks, $fullentrylink);
+
+      array_push($formatted_entries, "<li>\n" . $formatted_entry . "\n</li>");
     } //end foreach
 
-    echo "</ul>\n";
-  } // end format_entry  
+    echo "<ul class=\"plainlinks\">\n" . implode("\n", $formatted_entries) . "</ul>\n";
+  } // end format_entries
 
   // parse the query string
   function parse_query($querystring) {
