@@ -64,7 +64,7 @@ function populate_db($db, $bibfile, $bibparser, $modes, $verbose) {
     $cleanentry = array();
     foreach ($entry as $k=>$v) {
       $v = trim($v);
-      if ($modes != 0 && $v != "" && $k != "fullEntry") {
+      if ($modes != 0 && $v != "" && $k != "fullEntry" && $k != "url" && $k != "eprint" && $k != "e-print") {
         $v = convert_latex_string($v, $modes);
       }
       $cleanentry[$k] = $v;

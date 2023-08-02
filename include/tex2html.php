@@ -437,6 +437,11 @@ $special2utf8_array = array(
   '\\guilsinglright' => '&rsaquo;',
   '\\quotesinglbase' => '&sbquo;',
   '\\quotedblbase' => '&bdquo;',
+  '\\thinspace' => '&thinsp;',
+  '\\,' => '&thinsp;',
+  '\\ ' => '&nbsp;',
+  '\\;' => ' ',
+  '\\:' => ' ',
 );
 
 $bibtexenc = array_keys($bibtex2utf8_array);
@@ -780,14 +785,18 @@ function latex2html($string) {
     }
   }
   // text formatting
-  if (preg_match('/\\\\(?:emph|textit|textbf|it(?:shape)?|bf(?:series)?|underline)[^a-zA-Z]/', $string) === 1) {
+  if (preg_match('/\\\\(?:emph|textit|textsl|textbf|textmd|textsc|texttt|it(?:shape)?|bf(?:series)?|underline)[^a-zA-Z]/', $string) === 1) {
     for ($iteration = 0; $iteration < 3; $iteration++) {
       $string = preg_replace('/\\\\emph\\{([^\\{\}\\\\]*)\\}/', '<em>$1</em>', $string);
-      $string = preg_replace('/\\\\textit\\{([^\\{\}\\\\]*)\\}/', '<i>$1</i>', $string);
-      $string = preg_replace('/\\\\textbf\\{([^\\{\}\\\\]*)\\}/', '<b>$1</b>', $string);
-      $string = preg_replace('/\\\\underline\\{([^\\{\}\\\\]*)\\}/', '<u>$1</u>', $string);
       $string = preg_replace('/\\{\\\\it(?:shape)? ([^\\{\}\\\\]*)\\}/', '<i>$1</i>', $string);
       $string = preg_replace('/\\{\\\\bf(?:series)? ([^\\{\}\\\\]*)\\}/', '<b>$1</b>', $string);
+      $string = preg_replace('/\\\\textit\\{([^\\{\}\\\\]*)\\}/', '<span style="font-style: italic">$1</span>', $string);
+      $string = preg_replace('/\\\\textsl\\{([^\\{\}\\\\]*)\\}/', '<span style="font-style: oblique">$1</span>', $string);
+      $string = preg_replace('/\\\\textbf\\{([^\\{\}\\\\]*)\\}/', '<span style="font-weight: bold">$1</span>', $string);
+      $string = preg_replace('/\\\\textmd\\{([^\\{\}\\\\]*)\\}/', '<span style="font-weight: 500">$1</span>', $string);
+      $string = preg_replace('/\\\\textsc\\{([^\\{\}\\\\]*)\\}/', '<span style="font-variant: small-caps">$1</span>', $string);
+      $string = preg_replace('/\\\\texttt\\{([^\\{\}\\\\]*)\\}/', '<span style="font-family: monospace">$1</span>', $string);
+      $string = preg_replace('/\\\\underline\\{([^\\{\}\\\\]*)\\}/', '<span style="text-decoration-line: underline; text-decoration-style: solid;">$1</span>', $string);
     }
   }
   return $string;

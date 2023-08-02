@@ -58,6 +58,9 @@ $bibentry = "@Article{example01a,
   volume    = {6},
   number    = {11},
   pages     = {7--8},
+  url       = {ftp://domain.org/@user/file/ab--cd},
+  eprint    = {https://domain.org/~user/file/ab---cd?a=b&c=d},
+  e-print   = {https://domain.org/%user/file/ab\\&cd},
 }";
 
 $bibentry_article = '@article{sample-article,
@@ -156,8 +159,11 @@ check_db_field($array, "year", "2001");
 check_db_field($array, "journal", "Journal Name");
 check_db_field($array, "pages", "7&ndash;8");
 check_db_field($array, "title", "<span><i>X</i></span><sub><sup>9</sup><span><sub>4</sub></span>BeF<sub>2</sub></sub> = 1.5 at <span>+1&deg;</span>C");
-check_db_field($array, "subtitle", "<i>&alpha;</i> <span>&Copf;</span> <span>&Nscr;</span> <i>in silico <b>m</b></i> 4-<span><i>n</i></span>-alkyl-(<span><i>N</i></span>,<span><i>N</i></span>");
+check_db_field($array, "subtitle", "<i>&alpha;</i> <span>&Copf;</span> <span>&Nscr;</span> <i>in silico <span style=\"font-weight: bold\">m</span></i> 4-<span><i>n</i></span>-alkyl-(<span><i>N</i></span>,<span><i>N</i></span>");
 check_db_field($array, "booktitle", "Comment <em>on</em>: &ldquo;&lsquo;a&rsquo; and &lsquo;b&rsquo;&rdquo;");
+check_db_field($array, "url", "ftp://domain.org/@user/file/ab--cd");
+check_db_field($array, "eprint", "https://domain.org/~user/file/ab---cd?a=b&c=d");
+check_db_field($array, "e-print", "https://domain.org/%user/file/ab\\&cd");
 
 
 echo "Testing BibFormatter.format()\n";

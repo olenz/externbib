@@ -19,8 +19,7 @@ function pretty_print_from_backtrace($level) {
   return "$filename:$fileno";
 }
 
-function check_conversion($input, $expected, $callback) {
-  $output = call_user_func($callback, $input);
+function check_converted($input, $output, $expected, $callback) {
   if (strcmp($output, $expected) !== 0) {
     $line = pretty_print_from_backtrace(1);
     echo "Failed conversion by $callback() at $line:\n";
@@ -29,6 +28,11 @@ function check_conversion($input, $expected, $callback) {
     echo "  expected: \"$expected\"\n";
     exit(0);
   }
+}
+
+function check_conversion($input, $expected, $callback) {
+  $output = call_user_func($callback, $input);
+  check_converted($input, $output, $expected, $callback);
 }
 
 echo "Testing diacritics2utf8()\n";
@@ -148,14 +152,49 @@ check_conversion(
 );
 check_conversion(
   "\\underline{A} \\textbf{B} \\textit{C} \\emph{D} {\\bf B} {\\bfseries B} {\\it C} {\\itshape C}",
-  "<u>A</u> <b>B</b> <i>C</i> <em>D</em> <b>B</b> <b>B</b> <i>C</i> <i>C</i>",
+  "<span style=\"text-decoration-line: underline; text-decoration-style: solid;\">A</span> <span style=\"font-weight: bold\">B</span> <span style=\"font-style: italic\">C</span> <em>D</em> <b>B</b> <b>B</b> <i>C</i> <i>C</i>",
   "latex2html"
 );
 check_conversion(
   "\\underline{A\\textbf{B\\textit{C\\underline{A\\textbf{B\\textit{}}}}}}",
-  "<u>A<b>B<i>C<u>A<b>B<i></i></b></u></i></b></u>",
+  "<span style=\"text-decoration-line: underline; text-decoration-style: solid;\">A<span style=\"font-weight: bold\">B<span style=\"font-style: italic\">C<span style=\"text-decoration-line: underline; text-decoration-style: solid;\">A<span style=\"font-weight: bold\">B<span style=\"font-style: italic\"></span></span></span></span></span></span>",
   "latex2html"
 );
+
+
+function strval_array($array) {
+  $string = "";
+  foreach ($array as $element) {
+    if (is_array($element)) {
+      $string = $string . strval_array($element);
+    } elseif (is_string($element)) {
+      $string = $string . '"' . strval($element) . '"';
+    } else {
+      $string = $string . strval($element);
+    }
+    $string = $string . ", ";
+  }
+  return "[" . substr($string, 0, -2) . "]";
+}
+
+function test_math_extractor() {
+  $input = '$n$$v$ \\$$1$ \\(1$ - 1\\) \\[5$\\] $$5$\\(6\\)$$';
+  $output = math_extractor($input);
+  $expected = [
+    [0, '$', 3, '$', 'n'],
+    [3, '$', 6, '$', 'v'],
+    [9, '$', 12, '$', '1'],
+    [13, '\\(', 23, '\\)', '1$ - 1'],
+    [24, '\\[', 30, '\\]', '5$'],
+    [31, '$$', 42, '$$', '5$\\(6\\)'],
+  ];
+  check_converted($input, strval_array($output), strval_array($expected), "math_extractor");
+}
+
+
+echo "Testing math_extractor()\n";
+test_math_extractor();
+
 
 echo "Testing math2html()\n";
 
