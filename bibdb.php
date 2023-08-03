@@ -1,18 +1,28 @@
 <?php
+/**
+ * SQL queries.
+ *
+ * @package    ExternBib
+ * @author     Michael Kuron
+ * @copyright  2016 The Authors
+ * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
+ * @link       https://github.com/olenz/externbib
+ */
+
     // alternative sqlite functions for the dba_* functions
-    function bibdb_open($path, $mode, $table="default_table")
+    function bibdb_open($path, $mode, $table="default_table", $error_log="/var/log/mediawiki/error.log")
     {
         try {
             $sqliteobject = new SQLite3($path);
         } catch (Exception $e) {
-            error_log("Error in bibdb_open: $e->getMessage()\n", 3, "/var/log/mediawiki/error.log");
+            error_log("Error in bibdb_open: $e->getMessage()\n", 3, $error_log);
             return false; 
         }
         try {
             $sqliteobject->exec("CREATE TABLE IF NOT EXISTS $table (KEY TEXT, VALUE TEXT)");
         } catch (Exception $e) {
-            error_log("Error in bibdb_open: $e->getMessage()\n", 3, "/var/log/mediawiki/error.log");
-	    return false;
+            error_log("Error in bibdb_open: $e->getMessage()\n", 3, $error_log);
+            return false;
         }
         return $sqliteobject;
     }

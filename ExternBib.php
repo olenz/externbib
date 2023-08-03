@@ -1,7 +1,15 @@
 <?php
+/**
+ * Main code that connects Mediawiki to the ExternBib extension.
+ *
+ * @package    ExternBib
+ * @author     Olaf Lenz
+ * @author     Michael Kuron
+ * @copyright  2011-2013,2016 The Authors
+ * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
+ * @link       https://github.com/olenz/externbib
+ */
 if (!defined('MEDIAWIKI')) die();
-
-//require_once( "$IP/includes/SpecialPage.php" );
 
 // Interface to mediawiki
 $wgExternBibCredits =
@@ -18,8 +26,7 @@ $wgExtensionCredits['specialpage'][] = $wgExternBibCredits;
 
 $dir = dirname(__FILE__) . '/';
 
-// directly load ExternBib.class.php, as an instance will be created
-// anyway
+// directly load ExternBib.class.php, as an instance will be created anyway
 require_once($dir . 'ExternBib.class.php');
 
 $wgExtensionMessagesFiles['ExternBib'] = $dir . 'ExternBib.i18n.php';
@@ -41,9 +48,9 @@ if (!isset($wgExternBibFileDirs))
 if (!isset($wgExternBibFileBaseURLs)) 
   $wgExternBibFileBaseURLs = "extensions/ExternBib/test/pdf";
 if (!isset($wgExternBibDOIBaseURL)) 
-  $wgExternBibDOIBaseURL = "http://dx.doi.org";
+  $wgExternBibDOIBaseURL = "https://doi.org";
 if (!isset($wgExternBibEPrintBaseURL)) 
-  $wgExternBibEPrintBaseURL = "http://arxiv.org/abs";
+  $wgExternBibEPrintBaseURL = "https://arxiv.org/abs";
 if (!isset($wgExternBibDefaultFormat)) {
   $wgExternBibDefaultFormat = array();
   $wgExternBibDefaultFormat["filelink"] = true;
@@ -60,13 +67,14 @@ function efExternBibSetup() {
     $wgExternBibEPrintBaseURL,
     $wgExternBibDefaultFormat;
 
-  $wgExternBib = new ExternBib($wgExternBibDBFiles,
-			       $wgExternBibFileDirs, 
-			       $wgExternBibFileBaseURLs, 
-			       $wgExternBibDOIBaseURL,
-			       $wgExternBibEPrintBaseURL,
-			       $wgExternBibDefaultFormat
-			       );
+  $wgExternBib = new ExternBib(
+    $wgExternBibDBFiles,
+    $wgExternBibFileDirs,
+    $wgExternBibFileBaseURLs,
+    $wgExternBibDOIBaseURL,
+    $wgExternBibEPrintBaseURL,
+    $wgExternBibDefaultFormat
+  );
 
   // register the tags
   $wgParser->setHook("bibentry", array($wgExternBib, 'bibentry'));

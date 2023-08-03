@@ -1,4 +1,15 @@
 <?php
+/**
+ * Mediawiki special page to query a BibTeX database.
+ *
+ * @package    ExternBib
+ * @author     Olaf Lenz
+ * @author     David Schwoerer
+ * @author     Michael Kuron
+ * @copyright  2011-2013,2016 The Authors
+ * @license    https://opensource.org/licenses/BSD-3-Clause New BSD License
+ * @link       https://github.com/olenz/externbib
+ */
 class SpecialExternBibSearch extends SpecialPage {
   function __construct() {
     parent::__construct( 'ExternBibSearch' );
@@ -19,7 +30,8 @@ class SpecialExternBibSearch extends SpecialPage {
 
     echo "<p>";
     echo wfMessage('externbib-enterquery')->text(); 
-    ?>:<br/>
+    echo ":</p>";
+    ?> 
     <form name="searchform2" action="" method="get">
        <input style="width:400px" type="text" name="query" value="<?php print htmlspecialchars($query) ?>"/><br>
        <?php
@@ -30,7 +42,7 @@ class SpecialExternBibSearch extends SpecialPage {
 	   }
 	   echo '<input type="radio" name="databases" value="'.$key.'"';
 	   if ($databases == $key)
-	     echo 'checked="checked"';
+	     echo ' checked="checked"';
 	   if (isset($wgExternBibDBNames[$key])){
 	     echo "> ".$wgExternBibDBNames[$key]."<br>";
 	   }
@@ -42,7 +54,6 @@ class SpecialExternBibSearch extends SpecialPage {
        ?>
        <input type="submit" value="Search"/>
        </form>
-       </p>
        <?php
        if ($query) {
 	 echo "<h2>" . wfMessage('externbib-results')->text() . "</h2>\n";
